@@ -1,0 +1,69 @@
+/* Custom scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: hsl(var(--muted)) transparent; /* Firefox */
+}
+
+/* Chrome, Edge, and Safari */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Make scrollbar more visible on hover */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* Corner where horizontal and vertical scrollbars meet */
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode adjustments */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted));
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* Hide scrollbar when not needed */
+.custom-scrollbar.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-scrollbar.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Fade effect for scrollbar */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
+}

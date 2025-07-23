@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ai-shopping-assistant-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AFFILIATE_TAG
+        sync: false
+      - key: AFFILIATE_PROGRAM
+        value: amazon
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        fromService:
+          type: web
+          name: ai-shopping-assistant-api
+          envVarKey: PORT
+      - key: DEBUG
+        value: False
+      - key: FRONTEND_URL
+        value: https://ai-shopping-assistant.vercel.app
