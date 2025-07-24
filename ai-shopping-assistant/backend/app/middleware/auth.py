@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from typing import Optional, Dict, Any
 import time
+import requests
 
 from app.config import settings, logger
 
@@ -26,6 +27,20 @@ class JWTValidator:
         self.algorithms = settings.auth0_algorithms
         self.issuer = settings.auth0_issuer
     
+    def get_jwks(self) -> Dict[str, Any]:
+        """Get the JWKS from Auth0"""
+        jwks_url = f"https://{self.domain}/.well-known/jwks.json"
+        try:
+            response = requests.get(jwks_url)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Failed to fetch JWKS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch authentication keys"
+            )
+
     async def validate_token(self, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Dict[str, Any]:
         """
         Validates the JWT token from the Authorization header
@@ -49,22 +64,59 @@ class JWTValidator:
         token = credentials.credentials
         
         try:
-            # Get the JWKS URL from Auth0 domain
-            jwks_url = f"https://{self.domain}/.well-known/jwks.json"
+            # Get the JWKS from Auth0
+            jwks = self.get_jwks()
+            
+            # Get the unverified header to find the key ID
+            try:
+                unverified_header = jwt.get_unverified_header(token)
+                logger.debug(f"Token header: {unverified_header}")
+            except Exception as e:
+                logger.error(f"Failed to get unverified header: {str(e)}")
+                raise JWTValidationError("Invalid token format")
+            
+            # Handle tokens with or without kid
+            rsa_key = {}
+            if "kid" in unverified_header:
+                # Find the correct key from JWKS using kid
+                for key in jwks["keys"]:
+                    if key["kid"] == unverified_header["kid"]:
+                        rsa_key = {
+                            "kty": key["kty"],
+                            "kid": key["kid"],
+                            "use": key["use"],
+                            "n": key["n"],
+                            "e": key["e"]
+                        }
+                        break
+                
+                if not rsa_key:
+                    logger.error(f"Unable to find key with kid: {unverified_header['kid']}")
+                    logger.debug(f"Available keys: {[k['kid'] for k in jwks['keys']]}")
+                    raise JWTValidationError("Unable to find appropriate key")
+            else:
+                # For tokens without kid, try the first available key
+                logger.warning("Token header missing 'kid', trying first available key")
+                if jwks["keys"]:
+                    key = jwks["keys"][0]
+                    rsa_key = {
+                        "kty": key["kty"],
+                        "kid": key["kid"],
+                        "use": key["use"],
+                        "n": key["n"],
+                        "e": key["e"]
+                    }
+                else:
+                    raise JWTValidationError("No keys available in JWKS")
             
             # Decode and validate the token
             payload = jwt.decode(
                 token,
-                jwks_url,
+                rsa_key,
                 algorithms=self.algorithms,
                 audience=self.audience,
-                issuer=self.issuer,
-                options={"verify_signature": True, "verify_aud": True, "verify_exp": True}
+                issuer=self.issuer
             )
-            
-            # Check if token is expired
-            if "exp" in payload and payload["exp"] < time.time():
-                raise JWTValidationError("Token has expired")
             
             return payload
             
@@ -126,17 +178,60 @@ async def get_optional_user(request: Request) -> Optional[Dict[str, Any]]:
     token = auth_header.replace("Bearer ", "")
     
     try:
-        # Get the JWKS URL from Auth0 domain
+        # Get the JWKS from Auth0
         jwks_url = f"https://{settings.auth0_domain}/.well-known/jwks.json"
+        response = requests.get(jwks_url)
+        response.raise_for_status()
+        jwks = response.json()
+        
+        # Get the unverified header to find the key ID
+        try:
+            unverified_header = jwt.get_unverified_header(token)
+        except Exception as e:
+            logger.warning(f"Failed to get unverified header in optional auth: {str(e)}")
+            return None
+        
+        # Handle tokens with or without kid
+        rsa_key = {}
+        if "kid" in unverified_header:
+            # Find the correct key from JWKS using kid
+            for key in jwks["keys"]:
+                if key["kid"] == unverified_header["kid"]:
+                    rsa_key = {
+                        "kty": key["kty"],
+                        "kid": key["kid"],
+                        "use": key["use"],
+                        "n": key["n"],
+                        "e": key["e"]
+                    }
+                    break
+            
+            if not rsa_key:
+                logger.warning("Unable to find appropriate key for token validation")
+                return None
+        else:
+            # For tokens without kid, try the first available key
+            logger.warning("Token header missing 'kid' in optional auth, trying first available key")
+            if jwks["keys"]:
+                key = jwks["keys"][0]
+                rsa_key = {
+                    "kty": key["kty"],
+                    "kid": key["kid"],
+                    "use": key["use"],
+                    "n": key["n"],
+                    "e": key["e"]
+                }
+            else:
+                logger.warning("No keys available in JWKS")
+                return None
         
         # Decode and validate the token
         payload = jwt.decode(
             token,
-            jwks_url,
+            rsa_key,
             algorithms=settings.auth0_algorithms,
             audience=settings.auth0_api_audience,
-            issuer=settings.auth0_issuer,
-            options={"verify_signature": True, "verify_aud": True, "verify_exp": True}
+            issuer=settings.auth0_issuer
         )
         
         # Extract user information from the token

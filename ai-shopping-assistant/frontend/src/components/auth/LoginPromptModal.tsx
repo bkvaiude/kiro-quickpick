@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthContext } from '../../auth/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { CheckCircle, Lock, UserPlus } from 'lucide-react';
 
 export function LoginPromptModal() {
-  const { isAuthenticated, remainingGuestActions, login } = useAuth();
+  const { isAuthenticated, remainingGuestActions, login } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 

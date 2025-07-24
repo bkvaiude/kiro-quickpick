@@ -50,6 +50,9 @@ async def log_requests(request: Request, call_next):
         process_time = time.time() - start_time
         logger.info(f"{request.method} {request.url.path} completed in {process_time:.3f}s with status {response.status_code}")
         return response
+    except HTTPException:
+        # Re-raise HTTP exceptions so they're handled properly by FastAPI
+        raise
     except Exception as e:
         process_time = time.time() - start_time
         logger.error(f"{request.method} {request.url.path} failed after {process_time:.3f}s: {str(e)}")
@@ -76,7 +79,7 @@ app.include_router(router, prefix="/api")
 # Register exception handlers
 app.add_exception_handler(JWTError, jwt_error_handler)
 app.add_exception_handler(JWTValidationError, jwt_expired_handler)
-app.add_exception_handler(HTTPException, missing_token_handler)
+# Don't register a global HTTPException handler - let FastAPI handle them normally
 
 # Add validation error handler for better error messages
 @app.exception_handler(RequestValidationError)

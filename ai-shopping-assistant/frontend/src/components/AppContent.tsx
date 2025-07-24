@@ -1,8 +1,11 @@
-import { BrowserRouter as Router } from "react-router-dom";
-import { ChatProvider } from "./context/ChatContext";
-import { AuthProvider } from "./auth/AuthContext";
-import { ThemeProvider } from "./components/theme/ThemeProvider";
-import { AppRoutes } from "./routes/AppRoutes";
+import { useState, useEffect } from "react";
+import { Layout } from "./layout/Layout";
+import { ChatInterface } from "./chat/ChatInterface";
+import { useChatContext } from "../context/ChatContext";
+import { Card } from "./ui/card";
+import { LoginPromptModal } from "./auth/LoginPromptModal";
+import { WelcomeMessage } from "./auth/WelcomeMessage";
+import { ProductComparisonContainer } from "./product/ProductComparisonContainer";
 
 // Create a component that uses the context
 function AppContent() {
@@ -137,18 +140,4 @@ function AppContent() {
   );
 }
 
-function App() {
-  return (
-    <ThemeProvider defaultTheme="system" storageKey="shopping-assistant-theme">
-      <AuthProvider>
-        <ChatProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
-        </ChatProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  );
-}
-
-export default App;
+export default AppContent;

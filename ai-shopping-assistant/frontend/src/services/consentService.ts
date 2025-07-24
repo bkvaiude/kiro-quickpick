@@ -1,5 +1,4 @@
 import { API_BASE_URL } from '../config';
-import { AuthService } from './authService';
 
 // Consent interfaces
 export interface ConsentData {
@@ -19,10 +18,10 @@ export const ConsentService = {
   /**
    * Creates a new consent record for the current user
    * @param consentData The consent data to store
+   * @param token The authentication token
    * @returns Promise with the created consent record
    */
-  async createConsent(consentData: ConsentData): Promise<ConsentResponse> {
-    const token = AuthService.getToken();
+  async createConsent(consentData: ConsentData, token: string): Promise<ConsentResponse> {
     if (!token) {
       throw new Error('User must be authenticated to create consent');
     }
@@ -46,10 +45,10 @@ export const ConsentService = {
   
   /**
    * Gets the current user's consent record
+   * @param token The authentication token
    * @returns Promise with the user's consent record
    */
-  async getMyConsent(): Promise<ConsentResponse> {
-    const token = AuthService.getToken();
+  async getMyConsent(token: string): Promise<ConsentResponse | null> {
     if (!token) {
       throw new Error('User must be authenticated to get consent');
     }
@@ -63,7 +62,7 @@ export const ConsentService = {
     if (!response.ok) {
       // If the consent record doesn't exist, return null
       if (response.status === 404) {
-        return null as unknown as ConsentResponse;
+        return null;
       }
       
       const error = await response.json();
@@ -76,10 +75,10 @@ export const ConsentService = {
   /**
    * Updates the current user's consent record
    * @param consentData The consent data to update
+   * @param token The authentication token
    * @returns Promise with the updated consent record
    */
-  async updateMyConsent(consentData: Partial<ConsentData>): Promise<ConsentResponse> {
-    const token = AuthService.getToken();
+  async updateMyConsent(consentData: Partial<ConsentData>, token: string): Promise<ConsentResponse> {
     if (!token) {
       throw new Error('User must be authenticated to update consent');
     }
@@ -103,23 +102,32 @@ export const ConsentService = {
   
   /**
    * Synchronizes consent information between local storage and the backend
-   * This should be called after a user logs in
+   * @param isAuthenticated Whether the user is authenticated
+   * @param getToken Function to get the authentication token
+   * @param getUserConsent Function to get the user's consent from local storage
    */
-  async syncConsent(): Promise<void> {
+  async syncConsent(
+    isAuthenticated: boolean,
+    getToken: () => Promise<string | null>,
+    getUserConsent: () => { marketingConsent: boolean; timestamp: string } | null
+  ): Promise<void> {
     // Only proceed if the user is authenticated
-    if (!AuthService.isAuthenticated()) {
+    if (!isAuthenticated) {
       return;
     }
     
     try {
+      const token = await getToken();
+      if (!token) return;
+      
       // Get the local consent information
-      const localConsent = AuthService.getUserConsent();
+      const localConsent = getUserConsent();
       
       // If we have local consent information, try to get the backend consent
       if (localConsent) {
         try {
           // Try to get the backend consent
-          const backendConsent = await this.getMyConsent();
+          const backendConsent = await this.getMyConsent(token);
           
           // If the backend consent exists, update the local consent if needed
           if (backendConsent) {
@@ -127,14 +135,14 @@ export const ConsentService = {
             if (backendConsent.marketing_consent !== localConsent.marketingConsent) {
               await this.updateMyConsent({
                 marketing_consent: localConsent.marketingConsent
-              });
+              }, token);
             }
           } else {
             // If the backend consent doesn't exist, create it
             await this.createConsent({
               terms_accepted: true, // Terms must be accepted
               marketing_consent: localConsent.marketingConsent
-            });
+            }, token);
           }
         } catch (error) {
           console.error('Failed to sync consent:', error);

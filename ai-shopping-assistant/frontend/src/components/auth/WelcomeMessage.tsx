@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthContext } from '../../auth/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { PartyPopper } from 'lucide-react';
 
 export function WelcomeMessage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isNewLogin, setIsNewLogin] = useState(false);
 

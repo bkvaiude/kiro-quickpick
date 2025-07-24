@@ -4,6 +4,8 @@ import { ApiCredits } from "./ApiCredits";
 import { Sidebar } from "./Sidebar";
 import { LoginButton } from "../auth/LoginButton";
 import { GuestActionCounter } from "../auth/GuestActionCounter";
+import { UserProfile } from "../auth/UserProfile";
+import { useAuthContext } from "../../auth/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +15,7 @@ interface LayoutProps {
 
 export function Layout({ children, onProductResultsClick, isMobile: propIsMobile }: LayoutProps) {
   const [isMobile, setIsMobile] = useState(propIsMobile || false);
+  const { isAuthenticated } = useAuthContext();
 
   // Check if the screen is mobile size (only if not provided via props)
   useEffect(() => {
@@ -62,7 +65,7 @@ export function Layout({ children, onProductResultsClick, isMobile: propIsMobile
             <GuestActionCounter />
             <ApiCredits />
             <ThemeToggle />
-            <LoginButton />
+            {isAuthenticated ? <UserProfile /> : <LoginButton />}
           </div>
         </div>
       </header>

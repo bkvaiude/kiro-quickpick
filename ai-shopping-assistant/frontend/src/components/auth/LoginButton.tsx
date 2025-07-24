@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthContext } from '../../auth/AuthContext';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
-import { AuthService } from '../../services/authService';
 import { UserProfile } from './UserProfile';
 
 export function LoginButton() {
-  const { isAuthenticated, login, logout, user } = useAuth();
+  const { isAuthenticated, login, logout, user, saveUserConsent } = useAuthContext();
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -33,7 +32,7 @@ export function LoginButton() {
     
     // Store the user consent information
     const timestamp = new Date().toISOString();
-    AuthService.saveUserConsent({
+    saveUserConsent({
       termsAccepted,
       marketingConsent,
       timestamp

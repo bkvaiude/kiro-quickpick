@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthContext } from '../../auth/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import {
@@ -11,10 +11,12 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { LogOut, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function UserProfile() {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthContext();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
   if (!user) {
     return null;
@@ -23,12 +25,16 @@ export function UserProfile() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
+      logout();
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
       setIsLoggingOut(false);
     }
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
   };
 
   // Get user initials for avatar fallback
@@ -64,7 +70,7 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleProfileClick}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
