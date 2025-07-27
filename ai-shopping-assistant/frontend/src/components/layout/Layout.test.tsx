@@ -5,8 +5,8 @@ import { ChatProvider } from '../../context/ChatContext';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock the child components
-vi.mock('./ApiCredits', () => ({
-  ApiCredits: () => <div data-testid="api-credits">API Credits Mock</div>
+vi.mock('../credit/MessageCreditDisplay', () => ({
+  MessageCreditDisplay: () => <div data-testid="message-credit-display">Message Credits Mock</div>
 }));
 
 vi.mock('../theme/ThemeToggle', () => ({
@@ -19,6 +19,23 @@ vi.mock('./Sidebar', () => ({
       Sidebar Mock ({isMobile ? 'Mobile' : 'Desktop'})
     </div>
   )
+}));
+
+vi.mock('../auth/LoginButton', () => ({
+  LoginButton: () => <div data-testid="login-button">Login Button Mock</div>
+}));
+
+vi.mock('../auth/UserProfile', () => ({
+  UserProfile: () => <div data-testid="user-profile">User Profile Mock</div>
+}));
+
+vi.mock('../../auth/AuthContext', () => ({
+  useAuthContext: () => ({
+    isAuthenticated: false,
+    user: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+  })
 }));
 
 describe('Layout Component', () => {
@@ -51,14 +68,16 @@ describe('Layout Component', () => {
     expect(screen.getByText('AI Shopping Assistant')).toBeInTheDocument();
   });
 
-  it('renders the API credits in the header', () => {
+
+
+  it('renders the message credit display in the header', () => {
     renderWithProviders(
       <Layout>
         <div>Test Content</div>
       </Layout>
     );
     
-    expect(screen.getByTestId('api-credits')).toBeInTheDocument();
+    expect(screen.getByTestId('message-credit-display')).toBeInTheDocument();
   });
 
   it('renders the theme toggle in the header', () => {

@@ -53,14 +53,26 @@ export function UserProfile() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Button 
+          variant="ghost" 
+          className="relative h-10 w-10 rounded-full touch-manipulation"
+          aria-label="User menu"
+        >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.picture} alt={user.name || 'User'} />
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent 
+        className="w-56 mr-4" 
+        align="end" 
+        side="bottom"
+        sideOffset={8}
+        avoidCollisions={true}
+        collisionPadding={16}
+        forceMount
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user.name || 'User'}</p>
@@ -70,12 +82,19 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleProfileClick}>
+        <DropdownMenuItem 
+          onClick={handleProfileClick}
+          className="cursor-pointer touch-manipulation"
+        >
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+        <DropdownMenuItem 
+          onClick={handleLogout} 
+          disabled={isLoggingOut}
+          className="cursor-pointer touch-manipulation"
+        >
           <LogOut className="mr-2 h-4 w-4" />
           <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
         </DropdownMenuItem>

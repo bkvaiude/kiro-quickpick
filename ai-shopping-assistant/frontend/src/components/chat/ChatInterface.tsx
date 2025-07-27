@@ -5,7 +5,8 @@ import { ChatHistory } from "./ChatHistory";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { ErrorMessage } from "../ui/error-message";
 import { useChatContext } from "../../context/ChatContext";
-import { useAuth } from "../../context/AuthContext";
+import { useAuthContext as useAuth } from "../../auth/AuthContext";
+import { useCredits } from "../../hooks/useCredits";
 import { Button } from "../ui/button";
 import { LoginButton } from "../auth/LoginButton";
 import { AlertCircle } from "lucide-react";
@@ -19,70 +20,79 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
   const { state, sendMessage } = useChatContext();
   const { messages, isLoading, error } = state;
   const [lastQuery, setLastQuery] = useState<string>("");
-  const { decrementGuestActions, isAuthenticated, remainingGuestActions } = useAuth();
-  const [showGuestWarning, setShowGuestWarning] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { creditInfo, hasCredits, refreshCredits } = useCredits();
+  const [showCreditWarning, setShowCreditWarning] = useState(false);
   
-  // Check if the user is approaching the guest limit (3 or fewer actions left)
-  const isApproachingLimit = !isAuthenticated && remainingGuestActions <= 3 && remainingGuestActions > 0;
+  // Check if the user is approaching the credit limit (3 or fewer credits left)
+  const isApproachingLimit = creditInfo && creditInfo.available <= 3 && creditInfo.available > 0;
   
-  // Check if the user has reached the guest limit
-  const isGuestLimitReached = !isAuthenticated && remainingGuestActions <= 0;
+  // Check if the user has reached the credit limit
+  const isCreditLimitReached = creditInfo && creditInfo.available <= 0;
   
   // Show warning when approaching limit
   useEffect(() => {
-    if (isApproachingLimit && !showGuestWarning) {
-      setShowGuestWarning(true);
+    if (isApproachingLimit && !showCreditWarning) {
+      setShowCreditWarning(true);
     } else if (!isApproachingLimit) {
-      setShowGuestWarning(false);
+      setShowCreditWarning(false);
     }
-  }, [isApproachingLimit, remainingGuestActions]);
+  }, [isApproachingLimit, creditInfo?.available]);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
     setLastQuery(text);
     
-    // Check if user can send a message
-    if (isAuthenticated || remainingGuestActions > 0) {
-      // Decrement guest actions when sending a message
-      decrementGuestActions();
-      
+    // Check if user has credits available
+    const canSend = await hasCredits();
+    if (canSend) {
       await sendMessage(text);
+      // Refresh credits after sending to get updated count
+      refreshCredits();
     }
   };
 
   const handleRetry = async () => {
     if (lastQuery) {
-      // Check if user can retry
-      if (isAuthenticated || remainingGuestActions > 0) {
-        // Decrement guest actions when retrying a message
-        decrementGuestActions();
-        
+      // Check if user has credits available for retry
+      const canRetry = await hasCredits();
+      if (canRetry) {
         await sendMessage(lastQuery);
+        // Refresh credits after retry to get updated count
+        refreshCredits();
       }
     }
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* Guest limit warning banner */}
-      {showGuestWarning && !isGuestLimitReached && (
+      {/* Credit limit warning banner */}
+      {showCreditWarning && !isCreditLimitReached && creditInfo && (
         <div className="bg-amber-50 border-amber-200 border-b p-2 px-4 flex items-center justify-between">
           <div className="flex items-center text-amber-800 text-sm">
             <AlertCircle className="h-4 w-4 mr-2" />
-            <span>You have {remainingGuestActions} actions left as a guest. Sign in for unlimited access.</span>
+            <span>
+              You have {creditInfo.available} message{creditInfo.available !== 1 ? 's' : ''} left. 
+              {creditInfo.isGuest ? ' Sign in for daily credits that reset automatically.' : ' Credits reset daily.'}
+            </span>
           </div>
-          <LoginButton variant="outline" size="sm" className="ml-2" />
+          {creditInfo.isGuest && <LoginButton variant="outline" size="sm" className="ml-2" />}
         </div>
       )}
       
-      {/* Guest limit reached banner */}
-      {isGuestLimitReached && (
+      {/* Credit limit reached banner */}
+      {isCreditLimitReached && creditInfo && (
         <div className="bg-red-50 border-red-200 border-b p-2 px-4 flex items-center justify-between">
           <div className="flex items-center text-red-800 text-sm">
             <AlertCircle className="h-4 w-4 mr-2" />
-            <span>You've reached the guest limit. Sign in to continue using the assistant.</span>
+            <span>
+              {creditInfo.isGuest 
+                ? "You've used all your guest messages. Sign in to get daily credits that reset automatically."
+                : "You've used all your daily messages. Credits will reset in 24 hours."
+              }
+            </span>
           </div>
-          <LoginButton variant="default" size="sm" className="ml-2" />
+          {creditInfo.isGuest && <LoginButton variant="default" size="sm" className="ml-2" />}
         </div>
       )}
       
@@ -92,6 +102,7 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
             messages={messages} 
             isMobile={isMobile} 
             onProductResultsClick={onProductResultsClick}
+            onRefreshCachedResult={handleSendMessage}
           />
           {isLoading && <LoadingIndicator />}
           {error && !isLoading && <ErrorMessage message={error} onRetry={handleRetry} />}
@@ -99,7 +110,11 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
       </div>
       
       <div className="border-t p-4 flex-shrink-0">
-        <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          isLoading={isLoading}
+          creditInfo={creditInfo}
+        />
         
         {messages.length === 0 && !error && (
           <div className="mt-4">

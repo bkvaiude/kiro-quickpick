@@ -35,13 +35,13 @@ vi.mock('../services/api.ts', () => ({
               link: 'https://example.com/product2'
             }
           ],
-          recommendationsSummary: 'Based on your requirements, Redmi Note 12 Pro 5G is the best option.'
+          recommendations_summary: 'Based on your requirements, Redmi Note 12 Pro 5G is the best option.'
         };
       } else {
         return {
           query,
           products: [],
-          recommendationsSummary: 'No products found matching your criteria.'
+          recommendations_summary: 'No products found matching your criteria.'
         };
       }
     }),
@@ -165,7 +165,7 @@ describe('End-to-End Tests', () => {
       .mockResolvedValueOnce({
         query: 'Show me laptops under 50000',
         products: [],
-        recommendationsSummary: 'No products found matching your criteria.'
+        recommendations_summary: 'No products found matching your criteria.'
       });
     
     vi.mocked(vi.importActual('../services/api.ts')).ApiService.sendQueryWithRetry = mockSendQueryWithRetry;

@@ -1,9 +1,8 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuthContext as useAuth } from '../auth/AuthContext';
 import { ChatInput } from '../components/chat/ChatInput';
-import { AuthService } from '../services/authService';
-import { UserActionService, ActionType } from '../services/userActionService';
+import { ActionType } from '../services/userActionService';
 
 // Mock dependencies
 vi.mock('../services/authService', () => ({
@@ -53,11 +52,12 @@ vi.mock('../context/AuthContext', () => {
       remainingGuestActions: AuthService.getRemainingGuestActions(),
       login: AuthService.login,
       logout: AuthService.logout,
-      decrementGuestActions: (actionType) => {
+      incrementGuestAction: (actionType) => {
         // Only call incrementGuestAction for non-authenticated users
         if (!AuthService.isAuthenticated()) {
-          AuthService.incrementGuestAction(actionType);
+          return AuthService.incrementGuestAction(actionType);
         }
+        return true;
       }
     }),
     AuthProvider: ({ children }) => <>{children}</>
@@ -89,9 +89,9 @@ Object.defineProperty(window, 'localStorage', {
 
 // Test component that simulates chat interface
 function TestChatInterface() {
-  const { decrementGuestActions } = useAuth();
+  const { incrementGuestAction } = useAuth();
   const handleSendMessage = (message: string) => {
-    decrementGuestActions(ActionType.CHAT);
+    incrementGuestAction(ActionType.CHAT);
   };
   
   return (
@@ -170,11 +170,11 @@ describe('Guest Limit Enforcement Integration', () => {
     fireEvent.change(input, { target: { value: 'test message' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     
-    // Should not increment guest action for authenticated users
+    // Should not increment guest credit for authenticated users
     expect(AuthService.incrementGuestAction).not.toHaveBeenCalled();
   });
 
-  test('guest actions are tracked correctly', async () => {
+  test('guest credits are tracked correctly', async () => {
     let remainingActions = 3;
     
     (AuthService.isAuthenticated as any).mockReturnValue(false);

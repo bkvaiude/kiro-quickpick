@@ -1,8 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AuthProvider, useAuth } from '../context/AuthContext';
-import { AuthService } from '../services/authService';
-import { UserActionService, ActionType } from '../services/userActionService';
+import { AuthProvider, useAuthContext as useAuth } from '../auth/AuthContext';
+import { ActionType } from '../services/userActionService';
 
 // Mock dependencies
 vi.mock('../services/authService', () => ({
@@ -65,7 +64,7 @@ Object.defineProperty(window, 'localStorage', {
 
 // Test component that uses auth context
 function TestComponent() {
-  const { isAuthenticated, isLoading, user, remainingGuestActions, login, logout, decrementGuestActions } = useAuth();
+  const { isAuthenticated, isLoading, user, remainingGuestActions, login, logout, incrementGuestAction } = useAuth();
   
   return (
     <div>
@@ -76,7 +75,7 @@ function TestComponent() {
       <div data-testid="user-info">{user ? JSON.stringify(user) : 'No user'}</div>
       <button data-testid="login-button" onClick={() => login()}>Login</button>
       <button data-testid="logout-button" onClick={() => logout()}>Logout</button>
-      <button data-testid="action-button" onClick={() => decrementGuestActions(ActionType.CHAT)}>
+      <button data-testid="action-button" onClick={() => incrementGuestAction(ActionType.CHAT)}>
         Perform Action
       </button>
     </div>
@@ -131,7 +130,7 @@ describe('Authentication Integration', () => {
     expect(AuthService.logout).toHaveBeenCalled();
   });
 
-  test('action button decrements guest actions', async () => {
+  test('action button decrements guest credits', async () => {
     render(
       <AuthProvider>
         <TestComponent />

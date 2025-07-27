@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from './useAuth';
-import type { UserConsent, UserProfile } from '../services/authService';
+import type { UserConsent, UserProfile } from '../services/unifiedAuthService';
 import { ConsentService } from '../services/consentService';
 
 // Define the context interface

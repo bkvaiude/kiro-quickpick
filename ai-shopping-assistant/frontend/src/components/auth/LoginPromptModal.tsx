@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useAuthContext } from '../../auth/AuthContext';
+import { useAuthContext as useAuth } from '../../auth/AuthContext';
+import { useCredits } from '../../hooks/useCredits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { CheckCircle, Lock, UserPlus } from 'lucide-react';
 
 export function LoginPromptModal() {
-  const { isAuthenticated, remainingGuestActions, login } = useAuthContext();
+  const { isAuthenticated, login } = useAuth();
+  const { creditInfo } = useCredits();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Show the modal when guest actions are depleted
+  // Show the modal when guest credits are depleted
   useEffect(() => {
-    if (!isAuthenticated && remainingGuestActions <= 0) {
+    if (!isAuthenticated && creditInfo && creditInfo.isGuest && creditInfo.available <= 0) {
       setIsOpen(true);
     } else {
       setIsOpen(false);
     }
-  }, [isAuthenticated, remainingGuestActions]);
+  }, [isAuthenticated, creditInfo]);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -35,11 +37,11 @@ export function LoginPromptModal() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Lock className="h-5 w-5 text-primary" />
-            Guest Limit Reached
+            Message Limit Reached
           </DialogTitle>
           <DialogDescription>
-            You've reached the limit of actions available to guest users.
-            Create a free account to continue using the AI Shopping Assistant.
+            You've used all your guest messages.
+            Create a free account to get daily credits that reset automatically.
           </DialogDescription>
         </DialogHeader>
         
@@ -48,7 +50,7 @@ export function LoginPromptModal() {
           <ul className="space-y-3">
             <li className="flex items-start gap-2">
               <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-              <span>Unlimited chat messages and product searches</span>
+              <span>Daily message credits that reset automatically</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />

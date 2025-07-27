@@ -1,5 +1,5 @@
 import { UserActionService, ActionType } from './userActionService';
-import { AuthService } from './authService';
+import { unifiedAuthService } from './unifiedAuthService';
 
 /**
  * Service for tracking user actions in API calls
@@ -12,12 +12,12 @@ export const ActionTrackingService = {
    */
   trackApiAction(actionType: ActionType): boolean {
     // Authenticated users can always perform actions
-    if (AuthService.isAuthenticated()) {
+    if (unifiedAuthService.isAuthenticated()) {
       return true;
     }
     
     // Check if the guest limit is reached
-    if (AuthService.isGuestLimitReached()) {
+    if (unifiedAuthService.isGuestLimitReached()) {
       return false;
     }
     
@@ -32,12 +32,12 @@ export const ActionTrackingService = {
    */
   isActionAllowed(actionType: ActionType): boolean {
     // Authenticated users can always perform actions
-    if (AuthService.isAuthenticated()) {
+    if (unifiedAuthService.isAuthenticated()) {
       return true;
     }
     
     // Check if the guest limit is reached
-    return !AuthService.isGuestLimitReached();
+    return !unifiedAuthService.isGuestLimitReached();
   },
   
   /**
@@ -45,6 +45,6 @@ export const ActionTrackingService = {
    * @returns Number of remaining actions (Infinity for authenticated users)
    */
   getRemainingActions(): number {
-    return AuthService.getRemainingGuestActions();
+    return unifiedAuthService.getRemainingGuestActions();
   }
 };

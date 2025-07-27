@@ -1,287 +1,266 @@
-"""
-Tests for the query endpoint.
-"""
 import pytest
+import json
+from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock, AsyncMock
+from fastapi import Request
+from app.api.endpoints.query import process_query
+from app.models.query import QueryRequest, QueryResponse, ConversationContext, Product
 
-from app.main import app
-from app.models.query import QueryRequest, QueryResponse, Product
-from app.middleware.auth import get_optional_user
-from app.services.guest_action_service import guest_action_service
-
-client = TestClient(app)
 
 class TestQueryEndpoint:
-    """Test cases for the query endpoint."""
+    """Test cases for the query endpoint with caching and credit integration"""
     
-    @pytest.mark.asyncio
-    @patch('app.api.endpoints.query.gemini_service')
-    async def test_process_query_success(self, mock_gemini_service):
-        """Test successful query processing."""
-        # Mock the response from the GeminiService
-        mock_response = QueryResponse(
-            query="What's the best 5G phone under ₹12,000 with 8GB RAM?",
-            products=[
-                Product(
-                    title="Redmi Note 12 Pro 5G",
-                    price=11999,
-                    rating=4.2,
-                    features=["8GB RAM", "128GB Storage", "5G", "50MP Camera", "5000mAh Battery"],
-                    pros=["Great display", "Good camera", "Fast charging"],
-                    cons=["Average build quality", "Bloatware"],
-                    link="https://www.amazon.in/product1"
-                ),
-                Product(
-                    title="Realme 11 5G",
-                    price=12499,
-                    rating=4.0,
-                    features=["8GB RAM", "128GB Storage", "5G", "108MP Camera", "5000mAh Battery"],
-                    pros=["Excellent camera", "Fast processor", "Good battery life"],
-                    cons=["UI needs improvement", "Heating issues"],
-                    link="https://www.flipkart.com/product2"
-                )
-            ],
-            recommendations_summary="Based on your requirements, Redmi Note 12 Pro 5G is the best option."
+    def setup_method(self):
+        """Set up test environment before each test"""
+        self.mock_request = Mock(spec=Request)
+        self.mock_request.client.host = "127.0.0.1"
+        
+        # Sample query request
+        self.query_request = QueryRequest(
+            query="Find me a laptop under $1000",
+            conversation_context=None
         )
         
-        # Configure the mock to return our mock response
-        mock_gemini_service.process_query.return_value = mock_response
-        
-        # Create a test request
-        request_data = {
-            "query": "What's the best 5G phone under ₹12,000 with 8GB RAM?"
-        }
-        
-        # Send the request to the endpoint
-        response = client.post("/api/query", json=request_data)
-        
-        # Verify the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["query"] == "What's the best 5G phone under ₹12,000 with 8GB RAM?"
-        assert len(data["products"]) == 2
-        assert data["products"][0]["title"] == "Redmi Note 12 Pro 5G"
-        assert data["products"][1]["title"] == "Realme 11 5G"
-        assert data["recommendations_summary"] == "Based on your requirements, Redmi Note 12 Pro 5G is the best option."
-        
-        # Verify the mock was called correctly
-        mock_gemini_service.process_query.assert_called_once()
-    
-    @pytest.mark.asyncio
-    @patch('app.api.endpoints.query.gemini_service')
-    async def test_process_query_with_context(self, mock_gemini_service):
-        """Test query processing with conversation context."""
-        # Mock the response from the GeminiService
-        mock_response = QueryResponse(
-            query="What about under ₹15,000?",
+        # Sample query response
+        self.sample_response = QueryResponse(
+            query="Find me a laptop under $1000",
             products=[
                 Product(
-                    title="Poco X5 Pro 5G",
-                    price=14999,
-                    rating=4.3,
-                    features=["8GB RAM", "256GB Storage", "5G", "108MP Camera", "5000mAh Battery"],
-                    pros=["Best value for money", "Great performance", "AMOLED display"],
-                    cons=["Camera could be better", "Plastic build"],
-                    link="https://www.amazon.in/product3"
-                )
-            ],
-            recommendations_summary="Poco X5 Pro 5G offers the best value for money under ₹15,000."
-        )
-        
-        # Configure the mock to return our mock response
-        mock_gemini_service.process_query.return_value = mock_response
-        
-        # Create a test request with conversation context
-        request_data = {
-            "query": "What about under ₹15,000?",
-            "conversation_context": {
-                "messages": [
-                    {
-                        "id": "1",
-                        "text": "I'm looking for a 5G phone with 8GB RAM",
-                        "sender": "user",
-                        "timestamp": "2023-07-19T10:00:00Z"
-                    },
-                    {
-                        "id": "2",
-                        "text": "Here are some 5G phones with 8GB RAM...",
-                        "sender": "system",
-                        "timestamp": "2023-07-19T10:00:05Z"
-                    }
-                ],
-                "last_query": "I'm looking for a 5G phone with 8GB RAM",
-                "last_product_criteria": {
-                    "category": "phone",
-                    "features": ["5G Support", "8GB RAM"]
-                }
-            }
-        }
-        
-        # Send the request to the endpoint
-        response = client.post("/api/query", json=request_data)
-        
-        # Verify the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["query"] == "What about under ₹15,000?"
-        assert len(data["products"]) == 1
-        assert data["products"][0]["title"] == "Poco X5 Pro 5G"
-        
-        # Verify the mock was called correctly with the context
-        mock_gemini_service.process_query.assert_called_once()
-        args, kwargs = mock_gemini_service.process_query.call_args
-        assert kwargs["query"] == "What about under ₹15,000?"
-        assert kwargs["conversation_context"] is not None
-    
-    @pytest.mark.asyncio
-    @patch('app.api.endpoints.query.gemini_service')
-    async def test_process_query_error(self, mock_gemini_service):
-        """Test error handling in query processing."""
-        # Configure the mock to raise an exception
-        mock_gemini_service.process_query.side_effect = Exception("Test error")
-        
-        # Create a test request
-        request_data = {
-            "query": "What's the best 5G phone under ₹12,000 with 8GB RAM?"
-        }
-        
-        # Send the request to the endpoint
-        response = client.post("/api/query", json=request_data)
-        
-        # Verify the response
-        assert response.status_code == 500
-        data = response.json()
-        assert "detail" in data
-        assert "Error processing query" in data["detail"]
-    @
-pytest.mark.asyncio
-    @patch('app.api.endpoints.query.gemini_service')
-    @patch('app.api.endpoints.query.get_optional_user')
-    async def test_authenticated_user_query(self, mock_get_optional_user, mock_gemini_service):
-        """Test query processing with an authenticated user."""
-        # Mock the authenticated user
-        mock_get_optional_user.return_value = {
-            "sub": "auth0|123456789",
-            "email": "user@example.com",
-            "name": "Test User"
-        }
-        
-        # Mock the response from the GeminiService
-        mock_response = QueryResponse(
-            query="What's the best 5G phone?",
-            products=[
-                Product(
-                    title="Test Phone",
-                    price=12999,
+                    title="Test Laptop",
+                    price=899.99,
                     rating=4.5,
-                    features=["8GB RAM", "5G"],
-                    pros=["Good performance"],
-                    cons=["Average battery"],
-                    link="https://example.com/product"
+                    features=["16GB RAM", "512GB SSD"],
+                    pros=["Fast performance", "Good value"],
+                    cons=["Average battery life"],
+                    link="https://example.com/laptop"
                 )
             ],
-            recommendations_summary="Test recommendation"
+            recommendations_summary="Great laptop for the price",
+            metadata={}
         )
-        mock_gemini_service.process_query.return_value = mock_response
         
-        # Create a test request
-        request_data = {
-            "query": "What's the best 5G phone?"
+        # Sample credit status
+        self.sample_credit_status = {
+            "user_id": "127.0.0.1",
+            "available_credits": 9,
+            "max_credits": 10,
+            "is_guest": True,
+            "can_reset": False,
+            "next_reset_time": None
         }
-        
-        # Send the request to the endpoint with an auth token
-        response = client.post(
-            "/api/query", 
-            json=request_data,
-            headers={"Authorization": "Bearer test_token"}
-        )
-        
-        # Verify the response
-        assert response.status_code == 200
-        data = response.json()
-        assert "metadata" not in data or "remaining_guest_actions" not in data.get("metadata", {})
-        
-        # Verify the mock was called correctly
-        mock_gemini_service.process_query.assert_called_once()
     
     @pytest.mark.asyncio
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.get_credit_status')
     @patch('app.api.endpoints.query.gemini_service')
-    @patch('app.api.endpoints.query.get_optional_user')
-    @patch('app.api.endpoints.query.guest_action_service')
-    async def test_guest_user_query(self, mock_guest_service, mock_get_optional_user, mock_gemini_service):
-        """Test query processing with a guest user."""
-        # Mock the guest user (no authentication)
-        mock_get_optional_user.return_value = None
+    async def test_cache_hit_guest_user(self, mock_gemini, mock_get_credit_status, mock_cache_service):
+        """Test cache hit for guest user - should not deduct credits"""
+        # Mock cache hit
+        mock_cache_service.generate_query_hash.return_value = "test_hash_123"
+        mock_cache_service.get_cached_result.return_value = self.sample_response.model_dump()
         
-        # Mock the guest action service
-        mock_guest_service.is_limit_reached.return_value = False
-        mock_guest_service.track_action.return_value = True
-        mock_guest_service.get_remaining_actions.return_value = 9
+        # Mock credit status
+        mock_get_credit_status.return_value = self.sample_credit_status
         
-        # Mock the response from the GeminiService
-        mock_response = QueryResponse(
-            query="What's the best 5G phone?",
-            products=[
-                Product(
-                    title="Test Phone",
-                    price=12999,
-                    rating=4.5,
-                    features=["8GB RAM", "5G"],
-                    pros=["Good performance"],
-                    cons=["Average battery"],
-                    link="https://example.com/product"
-                )
-            ],
-            recommendations_summary="Test recommendation"
+        # Process query
+        result = await process_query(self.query_request, self.mock_request, user=None)
+        
+        # Verify cache was checked
+        mock_cache_service.generate_query_hash.assert_called_once_with(
+            query="Find me a laptop under $1000",
+            conversation_context=None
         )
-        mock_gemini_service.process_query.return_value = mock_response
+        mock_cache_service.get_cached_result.assert_called_once_with("test_hash_123")
         
-        # Create a test request
-        request_data = {
-            "query": "What's the best 5G phone?"
-        }
+        # Verify gemini was NOT called for cache hit
+        mock_gemini.process_query.assert_not_called()
         
-        # Send the request to the endpoint without an auth token
-        response = client.post("/api/query", json=request_data)
-        
-        # Verify the response
-        assert response.status_code == 200
-        data = response.json()
-        assert "metadata" in data
-        assert data["metadata"]["remaining_guest_actions"] == 9
-        
-        # Verify the mock was called correctly
-        mock_gemini_service.process_query.assert_called_once()
-        mock_guest_service.is_limit_reached.assert_called_once()
-        mock_guest_service.track_action.assert_called_once()
-        mock_guest_service.get_remaining_actions.assert_called_once()
+        # Verify response has cache indicators
+        assert result.metadata["cached"] is True
+        assert result.metadata["cache_hit"] is True
+        assert result.metadata["available_credits"] == 9
+        assert result.metadata["is_guest"] is True
     
     @pytest.mark.asyncio
-    @patch('app.api.endpoints.query.get_optional_user')
-    @patch('app.api.endpoints.query.guest_action_service')
-    async def test_guest_limit_reached(self, mock_guest_service, mock_get_optional_user):
-        """Test query processing when guest limit is reached."""
-        # Mock the guest user (no authentication)
-        mock_get_optional_user.return_value = None
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.get_credit_status')
+    @patch('app.api.endpoints.query.validate_credits')
+    @patch('app.api.endpoints.query.deduct_credit')
+    @patch('app.api.endpoints.query.gemini_service')
+    async def test_cache_miss_guest_user(self, mock_gemini, mock_deduct_credit, mock_validate_credits, mock_get_credit_status, mock_cache_service):
+        """Test cache miss for guest user - should deduct credits and cache result"""
+        # Mock cache miss
+        mock_cache_service.generate_query_hash.return_value = "test_hash_123"
+        mock_cache_service.get_cached_result.return_value = None
         
-        # Mock the guest action service to indicate limit reached
-        mock_guest_service.is_limit_reached.return_value = True
-        
-        # Create a test request
-        request_data = {
-            "query": "What's the best 5G phone?"
+        # Mock credit functions
+        mock_validate_credits.return_value = None
+        mock_deduct_credit.return_value = True
+        mock_get_credit_status.return_value = {
+            **self.sample_credit_status,
+            "available_credits": 8  # After deduction
         }
         
-        # Send the request to the endpoint without an auth token
-        response = client.post("/api/query", json=request_data)
+        # Mock gemini service
+        mock_gemini.process_query.return_value = self.sample_response
         
-        # Verify the response indicates limit reached
-        assert response.status_code == 403
-        data = response.json()
-        assert "detail" in data
-        assert "Guest action limit reached" in data["detail"]
+        # Process query
+        result = await process_query(self.query_request, self.mock_request, user=None)
         
-        # Verify the mock was called correctly
-        mock_guest_service.is_limit_reached.assert_called_once()
-        mock_guest_service.track_action.assert_not_called()
+        # Verify cache was checked
+        mock_cache_service.get_cached_result.assert_called_once_with("test_hash_123")
+        
+        # Verify credits were validated and deducted
+        mock_validate_credits.assert_called_once_with(self.mock_request, None)
+        mock_deduct_credit.assert_called_once_with(self.mock_request, None)
+        
+        # Verify query was processed
+        mock_gemini.process_query.assert_called_once()
+        
+        # Verify result was cached (the response gets modified with metadata before caching)
+        mock_cache_service.cache_result.assert_called_once()
+        cached_args = mock_cache_service.cache_result.call_args[0]
+        assert cached_args[0] == "test_hash_123"
+        assert cached_args[1]["query"] == "Find me a laptop under $1000"
+        assert len(cached_args[1]["products"]) == 1
+        
+        # Verify response has correct indicators
+        assert result.metadata["cached"] is False
+        assert result.metadata["cache_hit"] is False
+        assert result.metadata["available_credits"] == 8
+        assert result.metadata["is_guest"] is True
+    
+    @pytest.mark.asyncio
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.get_credit_status')
+    @patch('app.api.endpoints.query.gemini_service')
+    async def test_cache_hit_registered_user(self, mock_gemini, mock_get_credit_status, mock_cache_service):
+        """Test cache hit for registered user"""
+        # Mock user
+        user = {"sub": "auth0|123456"}
+        
+        # Mock cache hit
+        mock_cache_service.generate_query_hash.return_value = "test_hash_123"
+        mock_cache_service.get_cached_result.return_value = self.sample_response.model_dump()
+        
+        # Mock credit status for registered user
+        mock_get_credit_status.return_value = {
+            "user_id": "auth0|123456",
+            "available_credits": 45,
+            "max_credits": 50,
+            "is_guest": False,
+            "can_reset": True,
+            "next_reset_time": "2024-01-02T00:00:00"
+        }
+        
+        # Process query
+        result = await process_query(self.query_request, self.mock_request, user=user)
+        
+        # Verify cache was checked
+        mock_cache_service.get_cached_result.assert_called_once_with("test_hash_123")
+        
+        # Verify gemini was NOT called for cache hit
+        mock_gemini.process_query.assert_not_called()
+        
+        # Verify response has cache indicators
+        assert result.metadata["cached"] is True
+        assert result.metadata["cache_hit"] is True
+        assert result.metadata["available_credits"] == 45
+        assert result.metadata["is_guest"] is False
+    
+    @pytest.mark.asyncio
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.get_credit_status')
+    @patch('app.api.endpoints.query.validate_credits')
+    @patch('app.api.endpoints.query.deduct_credit')
+    @patch('app.api.endpoints.query.gemini_service')
+    async def test_conversation_context_affects_cache(self, mock_gemini, mock_deduct_credit, mock_validate_credits, mock_get_credit_status, mock_cache_service):
+        """Test that conversation context affects cache key generation"""
+        # Create request with conversation context
+        context = ConversationContext(
+            messages=[],
+            last_query="Previous query about phones"
+        )
+        request_with_context = QueryRequest(
+            query="What about laptops?",
+            conversation_context=context
+        )
+        
+        # Mock cache miss
+        mock_cache_service.generate_query_hash.return_value = "test_hash_with_context"
+        mock_cache_service.get_cached_result.return_value = None
+        
+        # Mock other services
+        mock_validate_credits.return_value = None
+        mock_deduct_credit.return_value = True
+        mock_gemini.process_query.return_value = self.sample_response
+        mock_get_credit_status.return_value = self.sample_credit_status
+        
+        # Process query
+        await process_query(request_with_context, self.mock_request, user=None)
+        
+        # Verify cache key generation included context
+        expected_context_str = json.dumps(context.model_dump(), sort_keys=True)
+        mock_cache_service.generate_query_hash.assert_called_once_with(
+            query="What about laptops?",
+            conversation_context=expected_context_str
+        )
+    
+    @pytest.mark.asyncio
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.validate_credits')
+    async def test_credit_exhausted_exception(self, mock_validate_credits, mock_cache_service):
+        """Test that credit exhaustion is handled properly"""
+        from app.middleware.credit_middleware import CreditExhaustedException
+        
+        # Mock cache miss
+        mock_cache_service.generate_query_hash.return_value = "test_hash_123"
+        mock_cache_service.get_cached_result.return_value = None
+        
+        # Mock credit validation to raise exception
+        mock_validate_credits.side_effect = CreditExhaustedException("No credits remaining")
+        
+        # Process query should raise CreditExhaustedException
+        with pytest.raises(CreditExhaustedException):
+            await process_query(self.query_request, self.mock_request, user=None)
+        
+        # Verify cache was checked first
+        mock_cache_service.get_cached_result.assert_called_once()
+        
+        # Verify credits were validated
+        mock_validate_credits.assert_called_once_with(self.mock_request, None)
+    
+    @pytest.mark.asyncio
+    @patch('app.api.endpoints.query.query_cache_service')
+    @patch('app.api.endpoints.query.validate_credits')
+    @patch('app.api.endpoints.query.deduct_credit')
+    @patch('app.api.endpoints.query.gemini_service')
+    async def test_gemini_service_error_handling(self, mock_gemini, mock_deduct_credit, mock_validate_credits, mock_cache_service):
+        """Test error handling when Gemini service fails"""
+        # Mock cache miss
+        mock_cache_service.generate_query_hash.return_value = "test_hash_123"
+        mock_cache_service.get_cached_result.return_value = None
+        
+        # Mock credit functions (should pass)
+        mock_validate_credits.return_value = None
+        mock_deduct_credit.return_value = True
+        
+        # Mock gemini service to raise exception
+        mock_gemini.process_query.side_effect = Exception("Gemini API error")
+        
+        # Process query should raise Exception
+        with pytest.raises(Exception):
+            await process_query(self.query_request, self.mock_request, user=None)
+        
+        # Verify cache was checked
+        mock_cache_service.get_cached_result.assert_called_once()
+        
+        # Verify credits were validated and deducted
+        mock_validate_credits.assert_called_once()
+        mock_deduct_credit.assert_called_once()
+        
+        # Verify gemini was called
+        mock_gemini.process_query.assert_called_once()
+        
+        # Verify result was NOT cached due to error
+        mock_cache_service.cache_result.assert_not_called()

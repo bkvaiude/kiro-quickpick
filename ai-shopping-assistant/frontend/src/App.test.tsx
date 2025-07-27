@@ -33,7 +33,7 @@ vi.mock('./context/AuthContext', () => ({
     user: null,
     isLoading: false,
     remainingGuestActions: 10,
-    decrementGuestActions: vi.fn(),
+    incrementGuestAction: vi.fn(),
   }),
 }));
 

@@ -1,118 +1,89 @@
 import { useAuth0 } from '@auth0/auth0-react';
-import { useCallback } from 'react';
-import { AuthService } from '../services/authService';
-import type { UserConsent, UserProfile, AuthState } from '../services/authService';
+import { useCallback, useEffect } from 'react';
+import { unifiedAuthService } from '../services/unifiedAuthService';
+import type { UserConsent, UserProfile } from '../services/unifiedAuthService';
+
+// Legacy AuthState interface for backward compatibility
+export interface AuthState {
+  isAuthenticated: boolean;
+  token: string | null;
+  expiresAt: number;
+  user: UserProfile | null;
+}
 
 /**
- * Custom hook that combines Auth0 functionality with our AuthService
+ * Custom hook that combines Auth0 functionality with our UnifiedAuthService
  */
 export const useAuth = () => {
+  const auth0Context = useAuth0();
   const {
     isAuthenticated,
-    loginWithRedirect,
     logout: auth0Logout,
-    getAccessTokenSilently,
-    user,
     isLoading
-  } = useAuth0();
+  } = auth0Context;
+
+  // Initialize the unified auth service with Auth0 context
+  useEffect(() => {
+    unifiedAuthService.initialize(auth0Context);
+  }, [auth0Context]);
 
   // Get token when needed
   const getToken = useCallback(async () => {
-    if (!isAuthenticated) return null;
-    
-    try {
-      return await getAccessTokenSilently();
-    } catch (error) {
-      console.error('Error getting access token:', error);
-      return null;
-    }
-  }, [isAuthenticated, getAccessTokenSilently]);
+    return await unifiedAuthService.getToken();
+  }, []);
 
   // Login function
   const login = useCallback(() => {
-    // Save current path to return to after login
-    AuthService.saveReturnPath();
-    
-    // Redirect to Auth0 login page
-    return loginWithRedirect({
-
-      openUrl: (url) => {
-  // Ensure URL is properly encoded
-        // console.log("🔍 Authorize URL about to be called:", url);
-        // url = encodeURI(url);
-        console.log("🔍 Authorize URL about to be called:", url);
-        
-        window.location.assign(url);
-      }
-    });
-  }, [loginWithRedirect]);
+    return unifiedAuthService.login();
+  }, []);
 
   // Logout function
   const logout = useCallback(() => {
-    return auth0Logout({ 
-      logoutParams: {
-        returnTo: window.location.origin 
-      }
-    });
-  }, [auth0Logout]);
+    return unifiedAuthService.logout();
+  }, []);
 
   // Get user profile
   const getUserInfo = useCallback((): UserProfile | null => {
-    if (!isAuthenticated || !user) return null;
-    
-    // Get marketing consent from local storage
-    const userConsent = AuthService.getUserConsent();
-    
-    return {
-      sub: user.sub || '',
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-      updated_at: user.updated_at || new Date().toISOString(),
-      marketingConsent: userConsent?.marketingConsent
-    };
-  }, [isAuthenticated, user]);
+    return unifiedAuthService.getUserProfile();
+  }, []);
 
-  // Get authentication state
+  // Get authentication state (for backward compatibility)
   const getAuthState = useCallback(async (): Promise<AuthState> => {
-    const token = isAuthenticated ? await getToken() : null;
+    const token = await getToken();
     
     return {
-      isAuthenticated,
+      isAuthenticated: unifiedAuthService.isAuthenticated(),
       token,
       expiresAt: 0, // Auth0 React SDK handles token expiration internally
       user: getUserInfo()
     };
-  }, [isAuthenticated, getToken, getUserInfo]);
+  }, [getToken, getUserInfo]);
 
   // Save user consent
   const saveUserConsent = useCallback((consent: UserConsent) => {
-    AuthService.saveUserConsent(consent);
+    unifiedAuthService.saveUserConsent(consent);
   }, []);
 
   // Get user consent
   const getUserConsent = useCallback(() => {
-    return AuthService.getUserConsent();
+    return unifiedAuthService.getUserConsent();
   }, []);
 
   // Guest user functionality
   const getRemainingGuestActions = useCallback(() => {
-    if (isAuthenticated) return Infinity;
-    return AuthService.getRemainingGuestActions();
-  }, [isAuthenticated]);
+    return unifiedAuthService.getRemainingGuestActions();
+  }, []);
 
   const incrementGuestAction = useCallback((actionType = 'chat') => {
-    if (isAuthenticated) return true;
-    return AuthService.incrementGuestAction(actionType);
-  }, [isAuthenticated]);
+    return unifiedAuthService.incrementGuestAction(actionType);
+  }, []);
 
   const isGuestLimitReached = useCallback(() => {
-    if (isAuthenticated) return false;
-    return AuthService.isGuestLimitReached();
-  }, [isAuthenticated]);
+    return unifiedAuthService.isGuestLimitReached();
+  }, []);
 
   const resetGuestActions = useCallback(() => {
-    AuthService.resetGuestActions();
+    unifiedAuthService.resetGuestActions();
   }, []);
 
   return {

@@ -6,9 +6,10 @@ interface ChatHistoryProps {
   messages: ChatMessageType[];
   isMobile: boolean;
   onProductResultsClick?: (messageId: string) => void;
+  onRefreshCachedResult?: (query: string) => void;
 }
 
-export function ChatHistory({ messages, isMobile, onProductResultsClick }: ChatHistoryProps) {
+export function ChatHistory({ messages, isMobile, onProductResultsClick, onRefreshCachedResult }: ChatHistoryProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,6 +31,8 @@ export function ChatHistory({ messages, isMobile, onProductResultsClick }: ChatH
             message={message} 
             isMobile={isMobile}
             onProductResultsClick={onProductResultsClick}
+            onRefreshCachedResult={onRefreshCachedResult}
+            cached={message.sender === 'system' && message.text.includes('(cached)')}
           />
         ))
       )}

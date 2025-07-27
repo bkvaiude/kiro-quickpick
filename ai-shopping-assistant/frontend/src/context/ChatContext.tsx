@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ChatMessage, ConversationContext, ApiResponse } from '../types/chat';
 import { LocalStorageService } from '../services/localStorage';
 import { ApiService, ApiError, ApiErrorType } from '../services/api';
-import { useAuth } from './AuthContext';
+import { useAuthContext as useAuth } from '../auth/AuthContext';
 import { ActionType } from '../services/userActionService';
 
 // Define the state type
@@ -53,6 +53,7 @@ const ChatContext = createContext<{
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
     case 'ADD_MESSAGE':
+      console.trace("---------ADD_MESAGE", action.payload)
       const updatedMessages = [...state.messages, action.payload];
       return {
         ...state,
@@ -118,7 +119,7 @@ const extractProductCriteria = (query: string): Partial<ConversationContext['las
 // Provider component
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
-  const { decrementGuestActions } = useAuth();
+  const { incrementGuestAction } = useAuth();
 
   // Load messages from local storage on initial render
   useEffect(() => {
@@ -186,7 +187,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Track this action for guest users
-    decrementGuestActions(ActionType.CHAT);
+    incrementGuestAction(ActionType.CHAT);
 
     // Create a new user message
     const userMessage: ChatMessage = {
@@ -264,69 +265,98 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
-          const mockResponse: ApiResponse = {
-            query: text,
-            products: text.toLowerCase().includes('phone') ? [
-              {
-                title: 'Redmi Note 12 Pro 5G',
-                price: 11999,
-                rating: 4.2,
-                features: ['8GB RAM', '128GB Storage', '5G', '50MP Camera', '5000mAh Battery'],
-                pros: ['Great display', 'Good camera', 'Fast charging'],
-                cons: ['Average build quality', 'Bloatware'],
-                link: 'https://example.com/product1'
-              },
-              {
-                title: 'Realme 11 5G',
-                price: 12499,
-                rating: 4.0,
-                features: ['8GB RAM', '128GB Storage', '5G', '108MP Camera', '5000mAh Battery'],
-                pros: ['Excellent camera', 'Fast processor', 'Good battery life'],
-                cons: ['UI needs improvement', 'Heating issues'],
-                link: 'https://example.com/product2'
-              },
-              {
-                title: 'Poco X5 Pro 5G',
-                price: 11499,
-                rating: 4.3,
-                features: ['8GB RAM', '256GB Storage', '5G', '108MP Camera', '5000mAh Battery'],
-                pros: ['Best value for money', 'Great performance', 'AMOLED display'],
-                cons: ['Camera could be better', 'Plastic build'],
-                link: 'https://example.com/product3'
-              }
-            ] : text.toLowerCase().includes('tv') ? [
-              {
-                title: 'Samsung Crystal 4K UHD TV',
-                price: 32999,
-                rating: 4.4,
-                features: ['43-inch', '4K UHD', 'HDR', 'Smart TV', 'Voice Assistant'],
-                pros: ['Excellent picture quality', 'Smart features', 'Value for money'],
-                cons: ['Average sound', 'Limited app support'],
-                link: 'https://example.com/tv1'
-              },
-              {
-                title: 'LG 4K OLED Smart TV',
-                price: 79999,
-                rating: 4.7,
-                features: ['55-inch', 'OLED', 'Dolby Vision', 'WebOS', 'HDMI 2.1'],
-                pros: ['Superior picture quality', 'Perfect blacks', 'Gaming features'],
-                cons: ['Expensive', 'Burn-in risk'],
-                link: 'https://example.com/tv2'
-              },
-              {
-                title: 'Mi Q1 QLED TV',
-                price: 54999,
-                rating: 4.3,
-                features: ['55-inch', 'QLED', '4K UHD', 'Android TV', 'Dolby Audio'],
-                pros: ['Vibrant colors', 'Sleek design', 'Good smart features'],
-                cons: ['UI lag sometimes', 'Average remote'],
-                link: 'https://example.com/tv3'
-              }
-            ] : [],
-            recommendationsSummary: text.toLowerCase().includes('phone') ? 
-              '• The Poco X5 Pro 5G offers the best value for money with 256GB storage at ₹11,499\n• Redmi Note 12 Pro has the best display quality in this price range\n• All options have 5G connectivity and 8GB RAM as requested' : 
-              'Based on your requirements, here are the best options available.'
+          // Generate mock response with some cases having no products but recommendations
+          const generateMockResponse = (query: string): ApiResponse => {
+            const lowerQuery = query.toLowerCase();
+            
+            // 30% chance of returning no products but with recommendations
+            const shouldReturnEmpty = Math.random() < 0.3;
+            
+            if (lowerQuery.includes('phone')) {
+              return {
+                query,
+                products: shouldReturnEmpty ? [] : [
+                  {
+                    title: 'Redmi Note 12 Pro 5G',
+                    price: 11999,
+                    rating: 4.2,
+                    features: ['8GB RAM', '128GB Storage', '5G', '50MP Camera', '5000mAh Battery'],
+                    pros: ['Great display', 'Good camera', 'Fast charging'],
+                    cons: ['Average build quality', 'Bloatware'],
+                    link: 'https://example.com/product1'
+                  },
+                  {
+                    title: 'Realme 11 5G',
+                    price: 12499,
+                    rating: 4.0,
+                    features: ['8GB RAM', '128GB Storage', '5G', '108MP Camera', '5000mAh Battery'],
+                    pros: ['Excellent camera', 'Fast processor', 'Good battery life'],
+                    cons: ['UI needs improvement', 'Heating issues'],
+                    link: 'https://example.com/product2'
+                  },
+                  {
+                    title: 'Poco X5 Pro 5G',
+                    price: 11499,
+                    rating: 4.3,
+                    features: ['8GB RAM', '256GB Storage', '5G', '108MP Camera', '5000mAh Battery'],
+                    pros: ['Best value for money', 'Great performance', 'AMOLED display'],
+                    cons: ['Camera could be better', 'Plastic build'],
+                    link: 'https://example.com/product3'
+                  }
+                ],
+                recommendations_summary: shouldReturnEmpty 
+                  ? `I couldn't find exact matches for "${query}", but here are some suggestions:\n\n• Try searching for "best smartphones under ₹15,000"\n• Consider looking at "5G phones with good camera"\n• You might also like "gaming phones under ₹25,000"\n\nI can help you find specific models if you provide more details about your requirements!`
+                  : '• The Poco X5 Pro 5G offers the best value for money with 256GB storage at ₹11,499\n• Redmi Note 12 Pro has the best display quality in this price range\n• All options have 5G connectivity and 8GB RAM as requested'
+              };
+            }
+            
+            if (lowerQuery.includes('tv')) {
+              return {
+                query,
+                products: shouldReturnEmpty ? [] : [
+                  {
+                    title: 'Samsung Crystal 4K UHD TV',
+                    price: 32999,
+                    rating: 4.4,
+                    features: ['43-inch', '4K UHD', 'HDR', 'Smart TV', 'Voice Assistant'],
+                    pros: ['Excellent picture quality', 'Smart features', 'Value for money'],
+                    cons: ['Average sound', 'Limited app support'],
+                    link: 'https://example.com/tv1'
+                  },
+                  {
+                    title: 'LG 4K OLED Smart TV',
+                    price: 79999,
+                    rating: 4.7,
+                    features: ['55-inch', 'OLED', 'Dolby Vision', 'WebOS', 'HDMI 2.1'],
+                    pros: ['Superior picture quality', 'Perfect blacks', 'Gaming features'],
+                    cons: ['Expensive', 'Burn-in risk'],
+                    link: 'https://example.com/tv2'
+                  },
+                  {
+                    title: 'Mi Q1 QLED TV',
+                    price: 54999,
+                    rating: 4.3,
+                    features: ['55-inch', 'QLED', '4K UHD', 'Android TV', 'Dolby Audio'],
+                    pros: ['Vibrant colors', 'Sleek design', 'Good smart features'],
+                    cons: ['UI lag sometimes', 'Average remote'],
+                    link: 'https://example.com/tv3'
+                  }
+                ],
+                recommendations_summary: shouldReturnEmpty
+                  ? `No exact matches found for "${query}". Here are some alternatives:\n\n• Try "best 55-inch smart TVs under ₹50,000"\n• Consider "OLED vs QLED TV comparison"\n• You might want "budget smart TVs with good picture quality"\n\nLet me know your budget and preferred size for better recommendations!`
+                  : '• Samsung Crystal offers great value for money in the mid-range segment\n• LG OLED provides premium picture quality for movie enthusiasts\n• Mi Q1 QLED is perfect for those wanting vibrant colors at a reasonable price'
+              };
+            }
+            
+            // For other queries, return empty products with helpful recommendations
+            return {
+              query,
+              products: [],
+              recommendations_summary: `I'd love to help you find the perfect product! Here are some suggestions:\n\n• Be more specific about what you're looking for\n• Include your budget range (e.g., "under ₹20,000")\n• Mention key features you need\n• Try popular categories like "smartphones", "laptops", "headphones", or "smart TVs"\n\nWhat specific product are you interested in?`
+            };
           };
+          
+          const mockResponse = generateMockResponse(text);
           
           handleApiResponse(mockResponse, text);
         }, 1500);
@@ -352,13 +382,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
   // Helper function to handle API response
   const handleApiResponse = (response: ApiResponse, query: string) => {
+    const cacheIndicator = response.cached ? ' (cached)' : '';
     const systemMessage: ChatMessage = {
       id: uuidv4(),
-      text: `Based on your query: "${query}", I've found these options:`,
+      text: `Based on your query: "${query}", I've found these options:${cacheIndicator}`,
       sender: 'system',
       timestamp: new Date(),
       products: response.products,
-      recommendationsSummary: response.recommendationsSummary,
+      recommendations_summary: response.recommendations_summary,
     };
     
     dispatch({ type: 'ADD_MESSAGE', payload: systemMessage });

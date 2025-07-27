@@ -20,15 +20,15 @@ This document outlines the requirements for implementing Auth0 authentication an
 
 ### Requirement 2: Guest Access Limitations
 
-**User Story:** As a product owner, I want to limit guest users to 10 total actions (chat + search), so that they are encouraged to register for full access.
+**User Story:** As a product owner, I want to limit guest users to 10 total message credits (chat + search), so that they are encouraged to register for full access.
 
 #### Acceptance Criteria
 
-1. WHEN a guest user accesses the application THEN the system SHALL allow them to perform up to 10 combined chat and search actions.
-2. WHEN a guest user reaches the 10-action limit THEN the system SHALL display a login prompt.
-3. WHEN a guest user reaches the 10-action limit THEN the system SHALL disable further inputs until the user registers.
+1. WHEN a guest user accesses the application THEN the system SHALL allow them to perform up to 10 combined chat and search message credits.
+2. WHEN a guest user reaches the 10-credit limit THEN the system SHALL display a login prompt.
+3. WHEN a guest user reaches the 10-credit limit THEN the system SHALL disable further inputs until the user registers.
 4. WHEN a guest user attempts to perform actions beyond the limit THEN the system SHALL reject API calls with a "login required" message.
-5. WHEN the system tracks guest usage THEN it SHALL count both chat messages and search queries toward the 10-action limit.
+5. WHEN the system tracks guest usage THEN it SHALL count both chat messages and search queries toward the 10-credit limit.
 
 ### Requirement 3: JWT Validation
 
@@ -56,13 +56,13 @@ This document outlines the requirements for implementing Auth0 authentication an
 
 ### Requirement 5: UI State Management
 
-**User Story:** As a user, I want the UI to clearly reflect my authentication state and remaining guest actions, so that I understand my current limitations and options.
+**User Story:** As a user, I want the UI to clearly reflect my authentication state and remaining message credits, so that I understand my current limitations and options.
 
 #### Acceptance Criteria
 
-1. WHEN a guest user is using the application THEN the system SHALL display the number of remaining actions (optional).
-2. WHEN a guest user reaches the action limit THEN the system SHALL display a modal explaining the benefits of registration.
-3. WHEN a guest user reaches the action limit THEN the system SHALL disable chat and search input fields.
+1. WHEN a guest user is using the application THEN the system SHALL display the number of remaining message credits (optional).
+2. WHEN a guest user reaches the credit limit THEN the system SHALL display a modal explaining the benefits of registration.
+3. WHEN a guest user reaches the credit limit THEN the system SHALL disable chat and search input fields.
 4. WHEN a user successfully logs in THEN the system SHALL restore full access to all features.
 5. WHEN a user successfully logs in THEN the system SHALL display a welcome message.
 6. WHEN a user is authenticated THEN the system SHALL display their authentication status.

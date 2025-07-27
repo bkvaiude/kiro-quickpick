@@ -10,6 +10,16 @@ vi.mock('./RecommendationsSummary', () => ({
   )
 }));
 
+// Mock the EmptyProductState component
+vi.mock('./EmptyProductState', () => ({
+  EmptyProductState: ({ query, recommendationsSummary }: { query?: string, recommendationsSummary?: string }) => (
+    <div data-testid="empty-product-state">
+      <div data-testid="empty-query">{query || 'No query'}</div>
+      <div data-testid="empty-recommendations">{recommendationsSummary || 'No recommendations'}</div>
+    </div>
+  )
+}));
+
 describe('ProductComparisonContainer', () => {
   const mockProducts: Product[] = [
     {
@@ -79,7 +89,16 @@ describe('ProductComparisonContainer', () => {
   test('renders empty product list correctly', () => {
     render(<ProductComparisonContainer products={[]} recommendationsSummary={mockSummary} />);
     
-    expect(screen.getByTestId('recommendations-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-product-state')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-recommendations')).toHaveTextContent(mockSummary);
     expect(screen.queryByText('Phone 1')).not.toBeInTheDocument();
+  });
+
+  test('passes query to EmptyProductState when no products', () => {
+    const testQuery = 'best smartphone under 15000';
+    render(<ProductComparisonContainer products={[]} recommendationsSummary={mockSummary} query={testQuery} />);
+    
+    expect(screen.getByTestId('empty-product-state')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-query')).toHaveTextContent(testQuery);
   });
 });

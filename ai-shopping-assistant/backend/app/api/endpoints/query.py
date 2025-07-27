@@ -1,9 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.query import QueryRequest, QueryResponse
 from app.services import GeminiService, ProductParserService, ContextManagerService
 from app.middleware.auth import get_optional_user
-from app.services.guest_action_service import guest_action_service
+from app.services.credit_service import credit_service
+from app.services.query_cache_service import query_cache_service
+from app.middleware.credit_middleware import validate_credits, deduct_credit, get_credit_status, CreditExhaustedException
+from app.database.manager import get_db_session
+from app.middleware.database_error_handlers import handle_database_errors
 from typing import Dict, Any, Optional
+import json
 
 router = APIRouter()
 
@@ -14,10 +20,12 @@ context_manager_service = ContextManagerService()
 
 
 @router.post("/query", response_model=QueryResponse)
+@handle_database_errors
 async def process_query(
     request: QueryRequest,
     req: Request,
-    user: Optional[Dict[str, Any]] = Depends(get_optional_user)
+    user: Optional[Dict[str, Any]] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db_session)
 ):
     """
     Process a natural language query and return product recommendations.
@@ -26,25 +34,43 @@ async def process_query(
     processes it using the Gemini API, and returns structured product recommendations.
     The response is validated and processed by the ProductParserService.
     
-    Authentication:
-    - Authenticated users have unlimited access
-    - Guest users are limited to a configured number of actions
+    Features:
+    - Server-side caching to avoid duplicate processing
+    - Credit-based usage tracking for guests and registered users
+    - Cache hit/miss tracking and statistics
     """
     try:
-        # Check if user is authenticated
-        if user is None:
-            # This is a guest user, get a unique identifier (IP address in this case)
-            guest_id = str(req.client.host)
+        # Generate cache key for the query
+        conversation_context_str = None
+        if request.conversation_context:
+            # Convert conversation context to string for caching
+            conversation_context_str = json.dumps(request.conversation_context.model_dump(), sort_keys=True)
+        
+        query_hash = query_cache_service.generate_query_hash(
+            query=request.query,
+            conversation_context=conversation_context_str
+        )
+        
+        # Check cache first
+        cached_result = query_cache_service.get_cached_result(query_hash)
+        if cached_result:
+            # Return cached result without deducting credits
+            response = QueryResponse(**cached_result)
             
-            # Check if guest has reached the action limit
-            if guest_action_service.is_limit_reached(guest_id):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Guest action limit reached. Please log in to continue."
-                )
+            # Add cache indicator and credit info to metadata
+            response.metadata = response.metadata or {}
+            response.metadata["cached"] = True
+            response.metadata["cache_hit"] = True
             
-            # Track the guest action
-            guest_action_service.track_action(guest_id, "chat")
+            # Add credit information
+            credits_info = await get_credit_status(req, user, session)
+            response.metadata.update(credits_info)
+            
+            return response
+        
+        # Not in cache, validate and deduct credits before processing
+        await validate_credits(req, user, session)
+        await deduct_credit(req, user, session)
         
         # Process the query using the GeminiService
         response = await gemini_service.process_query(
@@ -52,15 +78,23 @@ async def process_query(
             conversation_context=request.conversation_context
         )
         
-        # Add remaining actions count for guest users
-        if user is None:
-            guest_id = str(req.client.host)
-            remaining_actions = guest_action_service.get_remaining_actions(guest_id)
-            response.metadata = response.metadata or {}
-            response.metadata["remaining_guest_actions"] = remaining_actions
+        # Cache the result for future use
+        query_cache_service.cache_result(query_hash, response.model_dump())
+        
+        # Add cache and credit metadata
+        response.metadata = response.metadata or {}
+        response.metadata["cached"] = False
+        response.metadata["cache_hit"] = False
+        
+        # Add credit information after deduction
+        credits_info = await get_credit_status(req, user, session)
+        response.metadata.update(credits_info)
         
         return response
         
+    except CreditExhaustedException:
+        # Re-raise credit exhaustion exceptions (handled by middleware)
+        raise
     except HTTPException as e:
         # Re-raise HTTP exceptions
         raise e

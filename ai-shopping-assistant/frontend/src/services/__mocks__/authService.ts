@@ -1,5 +1,13 @@
 import { vi } from 'vitest';
-import { AuthState, UserProfile } from '../authService';
+import { UserProfile } from '../unifiedAuthService';
+
+// Legacy AuthState interface for backward compatibility
+export interface AuthState {
+  isAuthenticated: boolean;
+  token: string | null;
+  expiresAt: number;
+  user: UserProfile | null;
+}
 
 // Mock user profile
 const mockUserProfile: UserProfile = {

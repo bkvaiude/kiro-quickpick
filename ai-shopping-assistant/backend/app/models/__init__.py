@@ -6,6 +6,11 @@ from app.models.query import (
     ChatMessage,
     ProductCriteria
 )
+from app.models.credit import (
+    UserCredits,
+    CreditTransaction,
+    CreditStatus
+)
 
 __all__ = [
     "QueryRequest",
@@ -13,5 +18,8 @@ __all__ = [
     "Product",
     "ConversationContext",
     "ChatMessage",
-    "ProductCriteria"
+    "ProductCriteria",
+    "UserCredits",
+    "CreditTransaction",
+    "CreditStatus"
 ]

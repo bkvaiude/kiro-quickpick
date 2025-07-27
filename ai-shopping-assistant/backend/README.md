@@ -234,3 +234,16 @@ If you encounter issues with the Gemini API, check the following:
 3. Make your changes
 4. Run the tests
 5. Submit a pull request
+
+## Database config
+
+```
+docker run -d \
+  --name pg-ai-assistant \
+  -e POSTGRES_USER=user \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=ai_shopping_assistant \
+  -p 5433:5432 \
+  -v pgdata_ai:/var/lib/postgresql/data \
+  postgres
+```

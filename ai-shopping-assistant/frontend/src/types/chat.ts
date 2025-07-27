@@ -4,7 +4,7 @@ export interface ChatMessage {
   sender: 'user' | 'system';
   timestamp: Date;
   products?: Product[];
-  recommendationsSummary?: string;
+  recommendations_summary?: string;
 }
 
 export interface Product {
@@ -32,6 +32,7 @@ export interface ConversationContext {
 export interface ApiResponse {
   query: string;
   products: Product[];
-  recommendationsSummary: string;
+  recommendations_summary: string;
   error?: string;
+  cached?: boolean;
 }

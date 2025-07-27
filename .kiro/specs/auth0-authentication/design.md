@@ -40,7 +40,7 @@ interface AuthService {
   isAuthenticated(): boolean;               // Checks if user is authenticated
   getToken(): string | null;                // Gets the current token
   getUserInfo(): UserProfile | null;        // Gets user profile information
-  getRemainingGuestActions(): number;       // Gets remaining guest actions
+  getRemainingGuestActions(): number;       // Gets remaining message credits
 }
 ```
 
@@ -51,10 +51,10 @@ interface AuthContextType {
   isAuthenticated: boolean;                 // Authentication state
   isLoading: boolean;                       // Loading state during auth operations
   user: UserProfile | null;                 // User profile data
-  remainingGuestActions: number;            // Remaining actions for guest users
+  remainingGuestActions: number;            // Remaining message credits for guest users
   login: () => Promise<void>;               // Login function
   logout: () => Promise<void>;              // Logout function
-  decrementGuestActions: () => void;        // Decrements remaining guest actions
+  decrementGuestActions: () => void;        // Decrements remaining message credits
 }
 ```
 

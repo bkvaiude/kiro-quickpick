@@ -1,15 +1,18 @@
 import type { Product } from "../../types/chat";
 import { Card } from "../ui/card";
 import { RecommendationsSummary } from "./RecommendationsSummary";
+import { EmptyProductState } from "./EmptyProductState";
 
 interface ProductComparisonContainerProps {
   products: Product[];
   recommendationsSummary: string;
+  query?: string;
 }
 
 export function ProductComparisonContainer({ 
   products, 
-  recommendationsSummary 
+  recommendationsSummary,
+  query 
 }: ProductComparisonContainerProps) {
   // Find products with special highlights
   const findHighlightedProducts = () => {
@@ -56,6 +59,16 @@ export function ProductComparisonContainer({
     return badges;
   };
   
+  // If no products found, show empty state with AI recommendations
+  if (!products || products.length === 0) {
+    return (
+      <EmptyProductState 
+        query={query} 
+        recommendationsSummary={recommendationsSummary} 
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Display the recommendations summary */}

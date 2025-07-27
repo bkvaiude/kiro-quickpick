@@ -3,24 +3,26 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Send, Lock } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuthContext as useAuth } from "../../auth/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { CreditDisplayInfo } from "../../hooks/useCredits";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  creditInfo?: CreditDisplayInfo | null;
 }
 
-export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
+export function ChatInput({ onSendMessage, isLoading, creditInfo }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const { isAuthenticated, remainingGuestActions } = useAuth();
+  const { isAuthenticated } = useAuth();
   
-  // Check if the user has reached the guest limit
-  const isGuestLimitReached = !isAuthenticated && remainingGuestActions <= 0;
+  // Check if the user has reached the credit limit
+  const isCreditLimitReached = creditInfo && creditInfo.available <= 0;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isLoading && !isGuestLimitReached) {
+    if (message.trim() && !isLoading && !isCreditLimitReached) {
       onSendMessage(message);
       setMessage("");
     }
@@ -38,14 +40,18 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
       <div className="relative flex-1">
         <Input
           type="text"
-          placeholder={isGuestLimitReached ? "Login to continue chatting" : "Ask about products..."}
+          placeholder={
+            isCreditLimitReached 
+              ? (creditInfo?.isGuest ? "Sign in to continue chatting" : "Daily message limit reached")
+              : "Ask about products..."
+          }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading || isGuestLimitReached}
-          className={`flex-1 pr-10 ${isGuestLimitReached ? 'bg-muted text-muted-foreground' : ''}`}
+          disabled={isLoading || isCreditLimitReached}
+          className={`flex-1 pr-10 ${isCreditLimitReached ? 'bg-muted text-muted-foreground' : ''}`}
         />
-        {isGuestLimitReached && (
+        {isCreditLimitReached && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             <TooltipProvider>
               <Tooltip>
@@ -53,7 +59,12 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                   <Lock className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">You've reached the guest limit. Sign in to continue.</p>
+                  <p className="text-xs">
+                    {creditInfo?.isGuest 
+                      ? "You've used all your guest messages. Sign in to get daily credits."
+                      : "You've used all your daily messages. Credits reset in 24 hours."
+                    }
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -62,7 +73,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
       </div>
       <Button 
         type="submit" 
-        disabled={!message.trim() || isLoading || isGuestLimitReached}
+        disabled={!message.trim() || isLoading || isCreditLimitReached}
         size="icon"
       >
         <Send className="h-4 w-4" />

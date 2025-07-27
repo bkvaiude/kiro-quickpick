@@ -13,18 +13,18 @@
 
 - [x] 2. Implement guest user tracking and limitations
   - [x] 2.1 Create user action tracking service
-    - Implement service to track and count user actions (chat and search)
-    - Add functions to check remaining actions for guest users
+    - Implement service to track and count user credits (chat and search)
+    - Add functions to check remaining credits for guest users
     - _Requirements: 2.1, 2.5_
 
-  - [x] 2.2 Implement local storage for guest action tracking
-    - Create utility to store and retrieve guest action counts in localStorage
-    - Implement logic to persist guest actions across sessions
+  - [x] 2.2 Implement local storage for guest credit tracking
+    - Create utility to store and retrieve guest credit counts in localStorage
+    - Implement logic to persist guest credits across sessions
     - _Requirements: 2.1, 2.5_
 
-  - [x] 2.3 Add action tracking to API calls
-    - Modify API service to track actions when making requests
-    - Update chat and search functions to increment action count
+  - [x] 2.3 Add credit tracking to API calls
+    - Modify API service to track credits when making requests
+    - Update chat and search functions to increment credit count
     - _Requirements: 2.1, 2.5_
 
 - [x] 3. Implement JWT validation on backend
@@ -60,8 +60,8 @@
     - Create user profile display for authenticated users
     - _Requirements: 1.1, 5.6_
 
-  - [x] 5.2 Implement guest action counter display
-    - Create component to show remaining guest actions
+  - [x] 5.2 Implement guest credit counter display
+    - Create component to show remaining guest credits
     - Add visual indicators for approaching limits
     - _Requirements: 5.1_
 
@@ -99,7 +99,7 @@
 - [ ] 7. Write tests for authentication functionality
   - [x] 7.1 Create unit tests for authentication services
     - Test token validation functions
-    - Test guest action tracking logic
+    - Test guest credit tracking logic
     - _Requirements: 1.2, 2.1, 3.1_
 
   - [x] 7.2 Implement integration tests for authentication flow

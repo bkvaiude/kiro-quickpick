@@ -2,6 +2,7 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from jose import JWTError
 from app.middleware.auth import JWTValidationError
+from app.middleware.credit_middleware import CreditExhaustedException, credit_exhausted_handler
 from app.config import logger
 
 async def jwt_error_handler(request: Request, exc: JWTError) -> JSONResponse:
@@ -79,7 +80,7 @@ async def missing_token_handler(request: Request, exc: Exception) -> JSONRespons
 
 async def guest_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     """
-    Handle guest action limit errors
+    Handle guest credit limit errors
     
     Args:
         request: The FastAPI request object
@@ -88,14 +89,14 @@ async def guest_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     Returns:
         JSONResponse: A standardized error response
     """
-    if "Guest action limit reached" in str(exc):
-        logger.info("Guest action limit reached")
+    if "Guest credit limit reached" in str(exc):
+        logger.info("Guest credit limit reached")
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={
-                "detail": "Guest action limit reached",
+                "detail": "Guest credit limit reached",
                 "error_type": "guest_limit_reached",
-                "error_description": "You have reached the limit for guest actions. Please log in to continue."
+                "error_description": "You have reached the limit for message credits. Please log in to continue."
             }
         )
     return JSONResponse(

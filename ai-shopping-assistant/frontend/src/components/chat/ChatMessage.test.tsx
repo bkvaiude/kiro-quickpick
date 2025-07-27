@@ -118,7 +118,7 @@ describe('ChatMessage', () => {
           link: 'https://example.com/phone2'
         }
       ],
-      recommendationsSummary: 'Based on your requirements, Phone 1 is the best option.'
+      recommendations_summary: 'Based on your requirements, Phone 1 is the best option.'
     };
     
     render(<ChatMessage message={message} isMobile={false} />);
@@ -173,7 +173,7 @@ describe('ChatMessage', () => {
           link: 'https://example.com/phone1'
         }
       ],
-      recommendationsSummary: 'Based on your requirements, Phone 1 is the best option.'
+      recommendations_summary: 'Based on your requirements, Phone 1 is the best option.'
     };
     
     render(<ChatMessage message={message} isMobile={true} />);
@@ -181,5 +181,74 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Here are some phone recommendations:')).toBeInTheDocument();
     // In mobile view with only one product, it shows the product-comparison-container instead
     expect(screen.getByTestId('product-comparison-container')).toBeInTheDocument();
+  });
+
+  test('renders cached message with cache indicator and refresh button', () => {
+    const message: ChatMessageType = {
+      id: '6',
+      text: 'Based on your query: "best phones", I\'ve found these options: (cached)',
+      sender: 'system',
+      timestamp: new Date(),
+      products: [
+        {
+          title: 'Phone 1',
+          price: 10000,
+          rating: 4.5,
+          features: ['Feature 1', 'Feature 2'],
+          pros: ['Pro 1', 'Pro 2'],
+          cons: ['Con 1'],
+          link: 'https://example.com/phone1'
+        }
+      ],
+      recommendations_summary: 'Based on your requirements, Phone 1 is the best option.'
+    };
+    
+    render(<ChatMessage message={message} isMobile={false} cached={true} />);
+    
+    expect(screen.getByText(/Based on your query: "best phones", I've found these options: \(cached\)/)).toBeInTheDocument();
+    expect(screen.getByText('Cached')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /refresh result/i })).toBeInTheDocument();
+  });
+
+  test('does not show cache indicator for non-cached messages', () => {
+    const message: ChatMessageType = {
+      id: '7',
+      text: 'Based on your query: "best phones", I\'ve found these options:',
+      sender: 'system',
+      timestamp: new Date(),
+      products: [
+        {
+          title: 'Phone 1',
+          price: 10000,
+          rating: 4.5,
+          features: ['Feature 1', 'Feature 2'],
+          pros: ['Pro 1', 'Pro 2'],
+          cons: ['Con 1'],
+          link: 'https://example.com/phone1'
+        }
+      ],
+      recommendations_summary: 'Based on your requirements, Phone 1 is the best option.'
+    };
+    
+    render(<ChatMessage message={message} isMobile={false} cached={false} />);
+    
+    expect(screen.getByText(/Based on your query: "best phones", I've found these options:/)).toBeInTheDocument();
+    expect(screen.queryByText('Cached')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /refresh result/i })).not.toBeInTheDocument();
+  });
+
+  test('does not show cache indicator for user messages', () => {
+    const message: ChatMessageType = {
+      id: '8',
+      text: 'best phones',
+      sender: 'user',
+      timestamp: new Date()
+    };
+    
+    render(<ChatMessage message={message} isMobile={false} cached={true} />);
+    
+    expect(screen.getByText('best phones')).toBeInTheDocument();
+    expect(screen.queryByText('Cached')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /refresh result/i })).not.toBeInTheDocument();
   });
 });

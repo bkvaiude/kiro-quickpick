@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "../theme/ThemeToggle";
-import { ApiCredits } from "./ApiCredits";
 import { Sidebar } from "./Sidebar";
 import { LoginButton } from "../auth/LoginButton";
-import { GuestActionCounter } from "../auth/GuestActionCounter";
+import { MessageCreditDisplay } from "../credit/MessageCreditDisplay";
 import { UserProfile } from "../auth/UserProfile";
 import { useAuthContext } from "../../auth/AuthContext";
 
@@ -61,9 +60,8 @@ export function Layout({ children, onProductResultsClick, isMobile: propIsMobile
             <h1 className="text-xl font-bold">AI Shopping Assistant</h1>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <GuestActionCounter />
-            <ApiCredits />
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <MessageCreditDisplay />
             <ThemeToggle />
             {isAuthenticated ? <UserProfile /> : <LoginButton />}
           </div>

@@ -71,9 +71,9 @@ class TestAuthErrorHandlers:
     
     @pytest.mark.asyncio
     @patch('app.api.endpoints.query.get_optional_user')
-    @patch('app.api.endpoints.query.guest_action_service.is_limit_reached')
+    @patch('app.api.endpoints.query.message_credit_service.is_limit_reached')
     async def test_guest_limit_handler(self, mock_is_limit_reached, mock_get_optional_user):
-        """Test handling of guest action limit errors."""
+        """Test handling of guest credit limit errors."""
         # Mock the guest user and limit reached
         mock_get_optional_user.return_value = None
         mock_is_limit_reached.return_value = True
@@ -87,6 +87,6 @@ class TestAuthErrorHandlers:
         # Verify the response
         assert response.status_code == 403
         data = response.json()
-        assert data["detail"] == "Guest action limit reached"
+        assert data["detail"] == "Guest credit limit reached"
         assert data["error_type"] == "guest_limit_reached"
         assert "Please log in to continue" in data["error_description"]

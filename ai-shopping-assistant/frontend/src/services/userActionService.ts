@@ -1,6 +1,6 @@
 import { LocalStorageService } from './localStorage';
 
-// Action types that count toward guest limits
+// Action types that count toward guest credit limits
 export const ActionType = {
   CHAT: 'chat',
   SEARCH: 'search'
@@ -14,7 +14,7 @@ const STORAGE_KEYS = {
   GUEST_ACTION_HISTORY: 'guest_action_history'
 };
 
-// Maximum number of actions for guest users
+// Maximum number of message credits for guest users
 const MAX_GUEST_ACTIONS = 10;
 
 // Interface for tracking individual actions
@@ -24,13 +24,13 @@ export interface UserAction {
 }
 
 /**
- * Service for tracking and managing user actions
+ * Service for tracking and managing user message credit usage
  */
 export const UserActionService = {
   /**
-   * Track a new user action
+   * Track a new user action (credit usage)
    * @param actionType The type of action being performed
-   * @returns True if the action was counted, false if the limit is reached
+   * @returns True if the credit was counted, false if the limit is reached
    */
   trackAction(actionType: ActionType): boolean {
     // Get current action count
@@ -77,7 +77,7 @@ export const UserActionService = {
   },
 
   /**
-   * Store details about an action for analytics purposes
+   * Store details about a credit usage for analytics purposes
    * @param actionType The type of action being performed
    */
   storeAction(actionType: ActionType): void {
@@ -117,8 +117,8 @@ export const UserActionService = {
   },
 
   /**
-   * Get the number of remaining actions for guest users
-   * @returns Number of remaining actions
+   * Get the number of remaining message credits for guest users
+   * @returns Number of remaining credits
    */
   getRemainingActions(): number {
     const currentCount = this.getActionCount();
@@ -126,7 +126,7 @@ export const UserActionService = {
   },
 
   /**
-   * Check if the guest action limit is reached
+   * Check if the guest credit limit is reached
    * @returns True if the limit is reached, false otherwise
    */
   isLimitReached(): boolean {
@@ -134,7 +134,7 @@ export const UserActionService = {
   },
 
   /**
-   * Reset the guest action count and history
+   * Reset the guest credit count and history
    */
   resetActions(): void {
     try {
@@ -146,8 +146,8 @@ export const UserActionService = {
   },
   
   /**
-   * Get the maximum number of actions allowed for guest users
-   * @returns Maximum number of actions
+   * Get the maximum number of credits allowed for guest users
+   * @returns Maximum number of credits
    */
   getMaxActions(): number {
     return MAX_GUEST_ACTIONS;
