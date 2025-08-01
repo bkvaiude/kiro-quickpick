@@ -2,6 +2,36 @@
 
 An AI-powered shopping assistant that helps Indian users find products through natural language queries. The application uses the Gemini API to process user queries, extract relevant product information, and present a structured comparison of top product options with affiliate links.
 
+## 🚀 Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/ai-shopping-assistant.git
+   cd ai-shopping-assistant
+   ```
+
+2. **Set up the backend**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env
+   # Edit .env with your API keys
+   python run.py
+   ```
+
+3. **Set up the frontend**
+   ```bash
+   cd ../frontend
+   npm install
+   cp .env.example .env
+   # Edit .env with your settings
+   npm run dev
+   ```
+
+4. **Open your browser** to `http://localhost:5173`
+
 ## Features
 
 - **Natural Language Queries**: Search for products using conversational language
@@ -209,6 +239,18 @@ The backend is configured to accept requests from the following origins:
 - https://ai-shopping-assistant.vercel.app (Production)
 
 If you deploy the frontend to a different URL, update the `FRONTEND_URL` environment variable in the backend's `.env.production` file.
+
+## License
+
+This project is licensed under the [Mozilla Public License 2.0](LICENSE) - see the LICENSE file for details.
+
+### Commercial Use
+
+While this project is open source, **commercial use requires a separate license**. Please see [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) for details or contact **bhushan@highguts.com** for commercial licensing inquiries.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. By contributing to this project, you agree that your contributions will be licensed under the same license as the project.
 
 ## Troubleshooting
 
