@@ -43,12 +43,12 @@ class CreditMiddleware:
             return user["sub"], False
         else:
             # Guest user - use session ID or create one
-            session_id = request.headers.get("X-Session-ID")
+            session_id = request.headers.get("x-session-id")
             if not session_id:
-                # Try to get from client IP as fallback
-                client_ip = request.client.host if request.client else "unknown"
-                session_id = f"guest_{client_ip}_{uuid.uuid4().hex[:8]}"
-            
+                raise HTTPException(
+                    status_code=503,
+                    detail="Invalid x-session-id or guest id"
+                )
             return session_id, True
     
     async def validate_credits(self, request: Request, user: Optional[Dict[str, Any]] = Depends(get_optional_user), session: AsyncSession = Depends(get_db_session)) -> Dict[str, Any]:

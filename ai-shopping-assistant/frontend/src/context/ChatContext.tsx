@@ -53,7 +53,6 @@ const ChatContext = createContext<{
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
     case 'ADD_MESSAGE':
-      console.trace("---------ADD_MESAGE", action.payload)
       const updatedMessages = [...state.messages, action.payload];
       return {
         ...state,
@@ -187,7 +186,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Track this action for guest users
-    incrementGuestAction(ActionType.CHAT);
+    // incrementGuestAction(ActionType.CHAT);
 
     // Create a new user message
     const userMessage: ChatMessage = {

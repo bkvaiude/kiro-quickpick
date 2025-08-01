@@ -1,5 +1,6 @@
 import type { User } from '@auth0/auth0-react';
 import { UserActionService } from './userActionService';
+import browserFingerprintService from './fingerprint';
 
 // Storage keys for non-Auth0 data
 const STORAGE_KEYS = {
@@ -164,6 +165,9 @@ export class UnifiedAuthService {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+    }else{
+      const fingerprint = browserFingerprintService.getFingerprint(true);
+      headers['x-session-id'] = fingerprint;
     }
 
     return headers;

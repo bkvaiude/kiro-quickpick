@@ -50,13 +50,10 @@ export function useCredits() {
   }, []);
 
   const refreshCredits = useCallback(() => {
-    console.log("----------------refreshCredits")
     fetchCredits();
   }, [fetchCredits]);
 
   useEffect(() => {
-    console.log("----------------fetchCredits->useEffect", isAuthenticated)
-    console.trace("fetchCredits called from:");
     fetchCredits();
   }, [fetchCredits, isAuthenticated]);
 

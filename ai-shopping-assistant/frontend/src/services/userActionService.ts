@@ -43,7 +43,7 @@ export const UserActionService = {
     
     // Record the action
     this.storeAction(actionType);
-    
+    console.trace("-----setActionCount-----------")
     // Increment the counter
     this.setActionCount(currentCount + 1);
     

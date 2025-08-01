@@ -61,7 +61,6 @@ export function Layout({ children, onProductResultsClick, isMobile: propIsMobile
           </div>
           
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <MessageCreditDisplay />
             <ThemeToggle />
             {isAuthenticated ? <UserProfile /> : <LoginButton />}
           </div>

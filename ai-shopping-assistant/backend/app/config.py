@@ -8,12 +8,31 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 # Configure logging
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+import sys
+
+# Determine log level
+DEBUG_MODE = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if DEBUG_MODE else "INFO").upper()
+
+# Configure logging immediately
 logging.basicConfig(
-    level=getattr(logging, log_level),
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,  # Explicitly use stdout
+    force=True
 )
-logger = logging.getLogger(__name__)
+
+# Create logger
+logger = logging.getLogger("app.config")
+logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+
+# Ensure our logger propagates to root
+logger.propagate = True
+
+# Print to verify logging is working
+print(f"[LOGGING SETUP] DEBUG_MODE={DEBUG_MODE}, LOG_LEVEL={LOG_LEVEL}")
+logger.info("Logging configuration initialized")
+logger.debug("Debug logging is enabled")
 
 class DatabaseConfig(BaseModel):
     """Configuration for PostgreSQL database connection with optimized settings"""
@@ -32,6 +51,7 @@ class DatabaseConfig(BaseModel):
     # Connection optimization settings
     connect_timeout: int = Field(default=10, description="Connection timeout in seconds")
     command_timeout: int = Field(default=60, description="Command timeout in seconds")
+    prepared_statement_cache_size: int = Field(default=-1, description="Prepared statement cache size (-1 for auto-detect)")
     server_settings: dict = Field(
         default_factory=lambda: {
             "application_name": "ai_shopping_assistant",
@@ -58,7 +78,8 @@ class DatabaseConfig(BaseModel):
             statement_timeout=int(os.getenv("DB_STATEMENT_TIMEOUT", "30000")),
             idle_in_transaction_session_timeout=int(os.getenv("DB_IDLE_TRANSACTION_TIMEOUT", "60000")),
             connect_timeout=int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
-            command_timeout=int(os.getenv("DB_COMMAND_TIMEOUT", "60"))
+            command_timeout=int(os.getenv("DB_COMMAND_TIMEOUT", "60")),
+            prepared_statement_cache_size=int(os.getenv("DB_PREPARED_STATEMENT_CACHE_SIZE", "-1"))
         )
 
 class CreditSystemConfig(BaseModel):
@@ -106,7 +127,7 @@ class Settings(BaseModel):
     auth0_issuer: str = os.getenv("AUTH0_ISSUER", f"https://{os.getenv('AUTH0_DOMAIN', 'your-auth0-domain.auth0.com')}/")
     
     # Guest User Settings (Legacy - to be removed)
-    guest_action_limit: int = int(os.getenv("GUEST_ACTION_LIMIT", "10"))  # TODO: Remove after migration to credit system
+    guest_action_limit: int = int(os.getenv("MAX_GUEST_CREDITS", "10"))  # TODO: Remove after migration to credit system
     
     # Message Credit System Settings
     credit_system: CreditSystemConfig = Field(default_factory=CreditSystemConfig.from_env)
@@ -119,12 +140,13 @@ class Settings(BaseModel):
         default_factory=lambda: [
             "http://localhost:5173",  # Vite's default port
             "http://localhost:3000",  # Alternative development port
-            "https://ai-shopping-assistant.vercel.app",  # Production frontend URL
+            "https://instashop.highguts.com",  # Production frontend URL
         ] + ([os.getenv("FRONTEND_URL")] if os.getenv("FRONTEND_URL") and os.getenv("FRONTEND_URL") not in ["", "null", "undefined"] else [])
     )
 
 # Create settings instance
 settings = Settings()
+logger.debug("Debug logging is enabled Settings")
 
 # Validate required settings
 def validate_settings():
@@ -180,6 +202,7 @@ def validate_settings():
                 f"MaxOverflow={settings.database.max_overflow}, "
                 f"Timeout={settings.database.pool_timeout}s, "
                 f"EchoSQL={settings.database.echo_sql}")
+    logger.debug("Debug logging is enabled validate_settings")
 
 # Run validation on import
 validate_settings()

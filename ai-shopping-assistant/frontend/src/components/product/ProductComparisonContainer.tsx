@@ -148,7 +148,7 @@ export function ProductComparisonContainer({
               </div>
               
               <a 
-                href={product.link} 
+                href={"https://www.amazon.in/s?k="+encodeURI(product.title)+"&tag=pitstop0e-21"} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className={`block w-full text-center py-2 rounded-md transition-colors ${
@@ -157,7 +157,7 @@ export function ProductComparisonContainer({
                     : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--primary))]/90'
                 }`}
               >
-                Buy Now
+                Browse on Amazon
               </a>
             </Card>
           );

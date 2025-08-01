@@ -52,10 +52,7 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// Mock the LoginPromptModal component
-vi.mock('./components/auth/LoginPromptModal', () => ({
-  LoginPromptModal: () => <div data-testid="login-prompt-modal"></div>
-}));
+// LoginPromptModal functionality is now part of LoginButton
 
 // Mock the WelcomeMessage component
 vi.mock('./components/auth/WelcomeMessage', () => ({

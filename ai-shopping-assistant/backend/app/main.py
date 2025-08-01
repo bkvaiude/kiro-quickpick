@@ -62,15 +62,19 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting AI Shopping Assistant API")
+    logger.debug("Debug logging is enabled")
     
     try:
         # Initialize database manager
         logger.info("Initializing database connection...")
+        logger.debug(f"Database URL: {settings.database.database_url[:50]}...")
         await database_manager.initialize()
         
         # Run database migrations
         logger.info("Running database migrations...")
+        logger.info("Running database migrations......")
         database_manager.run_migrations()
+        logger.info("Running database migrations......_-")
         
         # Verify database health
         health_status = await health_checker.check_health()
@@ -150,11 +154,17 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     
+    # Log request details in debug mode
+    logger.debug(f"Incoming request: {request.method} {request.url.path}")
+    if request.query_params:
+        logger.debug(f"Query params: {dict(request.query_params)}")
+    
     # Process the request
     try:
         response = await call_next(request)
         process_time = time.time() - start_time
         logger.info(f"{request.method} {request.url.path} completed in {process_time:.3f}s with status {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
         return response
     except HTTPException:
         # Re-raise HTTP exceptions so they're handled properly by FastAPI

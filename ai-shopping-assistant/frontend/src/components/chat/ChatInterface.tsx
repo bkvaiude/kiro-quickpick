@@ -1,14 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatInput } from "./ChatInput";
 import { ExampleQueries } from "./ExampleQueries";
 import { ChatHistory } from "./ChatHistory";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { ErrorMessage } from "../ui/error-message";
 import { useChatContext } from "../../context/ChatContext";
-import { useAuthContext as useAuth } from "../../auth/AuthContext";
+
 import { useCredits } from "../../hooks/useCredits";
-import { Button } from "../ui/button";
-import { LoginButton } from "../auth/LoginButton";
+import { LoginButton, type LoginButtonRef } from "../auth/LoginButton";
 import { AlertCircle } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -20,9 +19,10 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
   const { state, sendMessage } = useChatContext();
   const { messages, isLoading, error } = state;
   const [lastQuery, setLastQuery] = useState<string>("");
-  const { isAuthenticated } = useAuth();
+
   const { creditInfo, hasCredits, refreshCredits } = useCredits();
   const [showCreditWarning, setShowCreditWarning] = useState(false);
+  const loginButtonRef = useRef<LoginButtonRef>(null);
   
   // Check if the user is approaching the credit limit (3 or fewer credits left)
   const isApproachingLimit = creditInfo && creditInfo.available <= 3 && creditInfo.available > 0;
@@ -32,6 +32,7 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
   
   // Show warning when approaching limit
   useEffect(() => {
+    console.log("isApproachingLimit", isApproachingLimit);
     if (isApproachingLimit && !showCreditWarning) {
       setShowCreditWarning(true);
     } else if (!isApproachingLimit) {
@@ -49,6 +50,11 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
       await sendMessage(text);
       // Refresh credits after sending to get updated count
       refreshCredits();
+    } else {
+      // If user has no credits, show login dialog with appropriate reason
+      if (loginButtonRef.current) {
+        loginButtonRef.current.showDialog('credits_expired');
+      }
     }
   };
 
@@ -76,7 +82,7 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
               {creditInfo.isGuest ? ' Sign in for daily credits that reset automatically.' : ' Credits reset daily.'}
             </span>
           </div>
-          {creditInfo.isGuest && <LoginButton variant="outline" size="sm" className="ml-2" />}
+          {creditInfo.isGuest && <LoginButton ref={loginButtonRef} variant="outline" size="sm" className="ml-2" />}
         </div>
       )}
       
@@ -92,7 +98,7 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
               }
             </span>
           </div>
-          {creditInfo.isGuest && <LoginButton variant="default" size="sm" className="ml-2" />}
+          {creditInfo.isGuest && <LoginButton ref={loginButtonRef} variant="default" size="sm" className="ml-2" />}
         </div>
       )}
       
@@ -122,6 +128,11 @@ export function ChatInterface({ isMobile = false, onProductResultsClick }: ChatI
           </div>
         )}
       </div>
+      
+      {/* Hidden LoginButton for triggering dialog when needed */}
+      {!showCreditWarning && !isCreditLimitReached && (
+        <LoginButton ref={loginButtonRef} className="hidden" />
+      )}
     </div>
   );
 }

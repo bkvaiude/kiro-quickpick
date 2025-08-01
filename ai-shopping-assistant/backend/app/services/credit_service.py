@@ -1,5 +1,5 @@
 from typing import Dict, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings, logger
 from app.models.credit import UserCredits, CreditTransaction, CreditStatus
@@ -28,7 +28,6 @@ class CreditService:
         Returns:
             UserCredits: The user's credit information
         """
-
         # Use provided session or create a new one
         if session:
             repo = CreditRepository(session)
@@ -298,6 +297,7 @@ class CreditService:
         Returns:
             CreditStatus: Comprehensive credit status information
         """
+
         user_credits = await self.get_user_credits(user_id, is_guest, session)
         
         # For registered users, check if credits need to be reset
@@ -335,7 +335,7 @@ class CreditService:
         
         # Check if reset interval has passed
         reset_interval = timedelta(hours=self.config.credit_reset_interval_hours)
-        if datetime.utcnow() - user_credits.last_reset_timestamp >= reset_interval:
+        if datetime.now(timezone.utc) - user_credits.last_reset_timestamp >= reset_interval:
             old_credits = user_credits.available_credits
             reset_timestamp = datetime.utcnow()
             

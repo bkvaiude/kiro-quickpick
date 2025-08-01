@@ -31,6 +31,40 @@ class DatabaseManager:
                 return
             
             try:
+                # Configure connection arguments based on prepared statement cache setting
+                connect_args = {
+                    "server_settings": settings.database.server_settings,
+                    "timeout": settings.database.connect_timeout,
+                    "command_timeout": settings.database.command_timeout,
+                }
+                
+                # Determine prepared statement cache size
+                cache_size = settings.database.prepared_statement_cache_size
+                
+                if cache_size == -1:
+                    # Auto-detect based on connection string
+                    is_pgbouncer = (
+                        ":5433/" in settings.database.database_url or 
+                        ":6432/" in settings.database.database_url or
+                        "pgbouncer" in settings.database.database_url.lower()
+                    )
+                    cache_size = 0 if is_pgbouncer else 100
+                    logger.info(f"Auto-detected prepared statement cache size: {cache_size} (pgbouncer: {is_pgbouncer})")
+                else:
+                    logger.info(f"Using configured prepared statement cache size: {cache_size}")
+                
+                if cache_size > 0:
+                    # Enable prepared statements
+                    connect_args.update({
+                        "prepared_statement_cache_size": cache_size,
+                        "prepared_statement_name_func": lambda: f"stmt_{hash(id(object()))}"
+                    })
+                    logger.info("Prepared statement caching enabled")
+                else:
+                    # Disable prepared statements (pgbouncer compatibility)
+                    connect_args["prepared_statement_cache_size"] = 0
+                    logger.info("Prepared statement caching disabled for pgbouncer compatibility")
+                
                 # Create async engine with optimized configuration for production
                 self.engine = create_async_engine(
                     settings.database.database_url,
@@ -42,15 +76,8 @@ class DatabaseManager:
                     echo=settings.database.echo_sql,
                     # Optimized connection pool settings for better performance
                     pool_reset_on_return='commit',
-                    # Connection arguments with performance optimizations
-                    connect_args={
-                        "server_settings": settings.database.server_settings,
-                        "timeout": settings.database.connect_timeout,
-                        "command_timeout": settings.database.command_timeout,
-                        # Enable prepared statements for better performance
-                        "prepared_statement_cache_size": 100,
-                        "prepared_statement_name_func": lambda: f"stmt_{hash(id(object()))}"
-                    },
+                    # Connection arguments with pgbouncer compatibility
+                    connect_args=connect_args,
                     # Query execution settings
                     execution_options={
                         "isolation_level": "READ_COMMITTED",
@@ -118,6 +145,16 @@ class DatabaseManager:
     
     def run_migrations(self):
         """Run database migrations using Alembic with enhanced error handling."""
+        import io
+        import sys
+        import signal
+        import threading
+        from contextlib import redirect_stdout, redirect_stderr
+        
+        # Save current logging configuration before Alembic messes with it
+        original_handlers = logging.root.handlers[:]
+        original_level = logging.root.level
+        
         try:
             # Get the directory containing this file
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -127,8 +164,13 @@ class DatabaseManager:
             if not os.path.exists(alembic_cfg_path):
                 raise FileNotFoundError(f"Alembic configuration not found at {alembic_cfg_path}")
             
+            logger.info(f"🚀 Starting database migrations using config: {alembic_cfg_path}")
+            
             # Create Alembic configuration
             alembic_cfg = Config(alembic_cfg_path)
+            
+            # Disable Alembic's logging configuration to prevent it from overriding ours
+            alembic_cfg.set_main_option("configure_logger", "false")
             
             # Set the database URL for migrations (convert to sync URL)
             database_url = settings.database.database_url
@@ -136,13 +178,128 @@ class DatabaseManager:
                 database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
             alembic_cfg.set_main_option("sqlalchemy.url", database_url)
             
-            # Run migrations
-            command.upgrade(alembic_cfg, "head")
-            logger.info("Database migrations completed successfully")
+            logger.info(f"📊 Database URL configured: {database_url[:50]}...")
             
+            # Check if migrations are needed
+            try:
+                from alembic.script import ScriptDirectory
+                from alembic.runtime.environment import EnvironmentContext
+                from alembic.runtime.migration import MigrationContext
+                from sqlalchemy import create_engine
+                
+                logger.info("🔍 Checking if migrations are needed...")
+                
+                # Create sync engine for Alembic checks
+                sync_engine = create_engine(database_url)
+                script = ScriptDirectory.from_config(alembic_cfg)
+                
+                with sync_engine.connect() as connection:
+                    context = MigrationContext.configure(connection)
+                    current_rev = context.get_current_revision()
+                    head_rev = script.get_current_head()
+                    
+                    logger.info(f"📍 Current revision: {current_rev}")
+                    logger.info(f"🎯 Head revision: {head_rev}")
+                    
+                    if current_rev == head_rev:
+                        logger.info("✅ Database is already up to date - no migrations needed!")
+                        # Restore logging immediately and return
+                        logging.root.handlers = original_handlers
+                        logging.root.level = original_level
+                        return
+                    
+                    logger.info(f"🔄 Need to migrate from {current_rev} to {head_rev}")
+                
+                sync_engine.dispose()
+                
+            except Exception as check_error:
+                logger.warning(f"⚠️ Could not check migration status: {check_error}")
+                logger.info("🤷 Proceeding with migration attempt anyway...")
+            
+            logger.info("⚡ Executing Alembic upgrade to head...")
+            
+            # Force flush logs before Alembic
+            for handler in logging.root.handlers:
+                handler.flush()
+            
+            # Capture Alembic output
+            stdout_capture = io.StringIO()
+            stderr_capture = io.StringIO()
+            
+            try:
+                logger.info("🔄 About to call command.upgrade...")
+                sys.stdout.flush()
+                sys.stderr.flush()
+                
+                # Add timeout mechanism
+                def run_alembic():
+                    with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                        command.upgrade(alembic_cfg, "head")
+                
+                # Run with timeout
+                alembic_thread = threading.Thread(target=run_alembic)
+                alembic_thread.daemon = True
+                alembic_thread.start()
+                alembic_thread.join(timeout=10)  # 60 second timeout
+                
+                if alembic_thread.is_alive():
+                    logger.error("⏰ Alembic command timed out after 60 seconds!")
+                    raise TimeoutError("Alembic migration timed out")
+                
+                logger.info("🎯 command.upgrade completed, processing output...")
+                
+                # Force restore logging configuration IMMEDIATELY
+                logging.root.handlers = original_handlers
+                logging.root.level = original_level
+                
+                # Get captured output
+                stdout_output = stdout_capture.getvalue().strip()
+                stderr_output = stderr_capture.getvalue().strip()
+                
+                # Log the results (after restoring logging)
+                if stdout_output:
+                    logger.info(f"📝 Alembic output:\n{stdout_output}")
+                else:
+                    logger.info("📝 Alembic produced no stdout output")
+                    
+                if stderr_output:
+                    logger.warning(f"⚠️ Alembic warnings:\n{stderr_output}")
+                else:
+                    logger.info("📝 Alembic produced no stderr output")
+                
+                logger.info("✅ Database migrations completed successfully!")
+                
+            except Exception as alembic_error:
+                # Restore logging first
+                logging.root.handlers = original_handlers
+                logging.root.level = original_level
+                
+                # Log any captured output
+                stdout_output = stdout_capture.getvalue().strip()
+                stderr_output = stderr_capture.getvalue().strip()
+                
+                if stdout_output:
+                    logger.error(f"📝 Alembic output before error:\n{stdout_output}")
+                if stderr_output:
+                    logger.error(f"❌ Alembic error output:\n{stderr_output}")
+                
+                logger.error(f"💥 Alembic command failed: {alembic_error}")
+                raise alembic_error
+                
         except Exception as e:
-            logger.error(f"Failed to run database migrations: {e}")
+            # Ensure logging is restored even on outer exceptions
+            logging.root.handlers = original_handlers
+            logging.root.level = original_level
+            
+            logger.error(f"❌ Migration process failed: {e}")
+            logger.error(f"🔍 Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"📋 Full traceback:\n{traceback.format_exc()}")
             raise
+        finally:
+            # Final safety net to restore logging
+            logging.root.handlers = original_handlers
+            logging.root.level = original_level
     
     async def health_check(self) -> bool:
         """Check if the database connection is healthy with retry logic."""

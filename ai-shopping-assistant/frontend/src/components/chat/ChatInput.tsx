@@ -3,9 +3,8 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Send, Lock } from "lucide-react";
-import { useAuthContext as useAuth } from "../../auth/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { CreditDisplayInfo } from "../../hooks/useCredits";
+import type { CreditDisplayInfo } from "../../hooks/useCredits";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -15,16 +14,20 @@ interface ChatInputProps {
 
 export function ChatInput({ onSendMessage, isLoading, creditInfo }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const { isAuthenticated } = useAuth();
   
   // Check if the user has reached the credit limit
   const isCreditLimitReached = creditInfo && creditInfo.available <= 0;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isLoading && !isCreditLimitReached) {
-      onSendMessage(message);
-      setMessage("");
+    if (message.trim() && !isLoading) {
+      if (isCreditLimitReached) {
+        // Still call onSendMessage - let the parent handle the credit check and dialog
+        onSendMessage(message);
+      } else {
+        onSendMessage(message);
+        setMessage("");
+      }
     }
   };
 
@@ -42,14 +45,14 @@ export function ChatInput({ onSendMessage, isLoading, creditInfo }: ChatInputPro
           type="text"
           placeholder={
             isCreditLimitReached 
-              ? (creditInfo?.isGuest ? "Sign in to continue chatting" : "Daily message limit reached")
+              ? (creditInfo?.isGuest ? "Type your message and press Enter to sign in..." : "Daily message limit reached")
               : "Ask about products..."
           }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading || isCreditLimitReached}
-          className={`flex-1 pr-10 ${isCreditLimitReached ? 'bg-muted text-muted-foreground' : ''}`}
+          disabled={isLoading}
+          className={`flex-1 pr-10 ${isCreditLimitReached && creditInfo?.isGuest ? 'border-primary' : ''}`}
         />
         {isCreditLimitReached && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -73,7 +76,7 @@ export function ChatInput({ onSendMessage, isLoading, creditInfo }: ChatInputPro
       </div>
       <Button 
         type="submit" 
-        disabled={!message.trim() || isLoading || isCreditLimitReached}
+        disabled={!message.trim() || isLoading}
         size="icon"
       >
         <Send className="h-4 w-4" />

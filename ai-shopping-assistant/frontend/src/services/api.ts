@@ -70,9 +70,9 @@ export const ApiService = {
       }
 
       // Track this action only for guest users (only if not cached)
-      if (!unifiedAuthService.isAuthenticated()) {
-        ActionTrackingService.trackApiAction(ActionType.CHAT);
-      }
+      // if (!unifiedAuthService.isAuthenticated()) {
+      //   ActionTrackingService.trackApiAction(ActionType.CHAT);
+      // }
 
       // Get headers with authentication if available
       const headers = await this.getAuthHeaders();

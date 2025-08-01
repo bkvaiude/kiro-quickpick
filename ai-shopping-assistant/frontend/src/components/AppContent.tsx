@@ -3,7 +3,7 @@ import { Layout } from "./layout/Layout";
 import { ChatInterface } from "./chat/ChatInterface";
 import { useChatContext } from "../context/ChatContext";
 import { Card } from "./ui/card";
-import { LoginPromptModal } from "./auth/LoginPromptModal";
+
 import { WelcomeMessage } from "./auth/WelcomeMessage";
 import { ProductComparisonContainer } from "./product/ProductComparisonContainer";
 
@@ -242,7 +242,7 @@ function AppContent() {
           {messageToDisplay ? (
             <ProductComparisonContainer 
               products={messageToDisplay.products || []} 
-              recommendationsSummary={messageToDisplay.recommendationsSummary || ''} 
+              recommendationsSummary={messageToDisplay.recommendations_summary || ''} 
               query={state.conversationContext.lastQuery}
             />
           ) : (
@@ -251,8 +251,7 @@ function AppContent() {
         </div>
       </div>
       
-      {/* Authentication-related modals */}
-      <LoginPromptModal />
+      {/* Authentication-related modals are now handled by LoginButton */}
       <WelcomeMessage />
     </Layout>
   );

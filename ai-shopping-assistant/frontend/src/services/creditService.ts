@@ -24,7 +24,7 @@ export class CreditService {
    */
   static async getCreditStatus(): Promise<CreditStatus> {
     try {
-      const headers = await this.getAuthHeaders();
+      let headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/credits/status`, {
         method: 'GET',
         headers,
